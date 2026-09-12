@@ -1,9 +1,9 @@
-mod error;
+mod configure_default_services;
 #[cfg(not(feature = "proxy_default_service"))]
 mod csr;
+mod error;
 #[cfg(feature = "proxy_default_service")]
 mod forward;
-mod configure_default_services;
 mod trusted_proxies_data;
 
 use crate::server::configure_default_services::configure_default_services;
@@ -29,8 +29,6 @@ pub(crate) fn create_app(
     Error = actix_web::Error,
   >,
 > {
-  
-
   let json_config =
     web::JsonConfig::default().error_handler(|err, _req| match err {
       actix_web::error::JsonPayloadError::OverflowKnownLength {

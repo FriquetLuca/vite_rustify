@@ -124,13 +124,13 @@ pub async fn register_route(
     .to_string();
 
   let result = sqlx::query(
-        "INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3)"
-    )
-    .bind(&req.username)
-    .bind(&req.email)
-    .bind(&hash)
-    .execute(&**pool)
-    .await;
+    "INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3)",
+  )
+  .bind(&req.username)
+  .bind(&req.email)
+  .bind(&hash)
+  .execute(&**pool)
+  .await;
 
   let _ = result.map_err(|_| RegisterError::InternalServerError)?;
 

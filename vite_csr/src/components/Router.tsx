@@ -10,12 +10,9 @@ interface PageModule {
   title?: string | undefined;
 }
 
-const pages = import.meta.glob(
-  ['/src/pages/**/*.tsx'],
-  {
-    eager: false,
-  }
-) as Record<string, () => Promise<PageModule>>;
+const pages = import.meta.glob(['/src/pages/**/*.tsx'], {
+  eager: false,
+}) as Record<string, () => Promise<PageModule>>;
 
 function PageRoute({
   loader,

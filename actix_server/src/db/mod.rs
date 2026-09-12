@@ -2,10 +2,10 @@ pub mod errors;
 mod migrations;
 pub(crate) use migrations::run_migrations;
 
+use crate::config::env_config;
 use actix_web::web::Data;
 use errors::DbError;
 use sqlx::{postgres::PgPoolOptions, PgPool, Pool, Postgres};
-use crate::config::env_config;
 
 pub(crate) async fn create_masterdb_pool(
   max: Option<u32>,
@@ -26,8 +26,7 @@ pub(crate) async fn create_masterdb_pool(
   Ok(pool)
 }
 
-pub(crate) async fn migrate(
-) -> Result<Data<Pool<Postgres>>, DbError> {
+pub(crate) async fn migrate() -> Result<Data<Pool<Postgres>>, DbError> {
   let pool = create_masterdb_pool(None).await?;
   run_migrations(&pool).await?;
   Ok(Data::new(pool.clone()))

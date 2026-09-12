@@ -47,9 +47,10 @@ const HOST = process.env?.VITE_HOST ?? '0.0.0.0';
 const BASE = process.env?.VITE_BASE_PATH ?? '/';
 const PORT = process.env?.VITE_PORT ? Number(process.env.VITE_PORT) : 5173;
 
-const ABORT_DELAY = process.env?.VITE_ABORT_DELAY ? Number(process.env.VITE_ABORT_DELAY) : 10000;
+const ABORT_DELAY = process.env?.VITE_ABORT_DELAY
+  ? Number(process.env.VITE_ABORT_DELAY)
+  : 10000;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 
 i18next
   .use(i18nextBackend)
