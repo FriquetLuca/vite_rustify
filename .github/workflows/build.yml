@@ -13,8 +13,8 @@ jobs:
       run:
         working-directory: ./fastify_vite_ssr
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: 'npm'
@@ -26,7 +26,7 @@ jobs:
         run: npm run build
 
       - name: Upload SSR assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ssr-dist
           path: ./fastify_vite_ssr/dist
@@ -37,8 +37,8 @@ jobs:
       run:
         working-directory: ./vite_csr
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: 'npm'
@@ -50,7 +50,7 @@ jobs:
         run: npm run build
 
       - name: Upload CSR assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: csr-dist
           path: ./vite_csr/dist
@@ -60,10 +60,10 @@ jobs:
     if: always() && !cancelled() && !contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download CSR assets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: csr-dist
           path: ./vite_csr/dist
