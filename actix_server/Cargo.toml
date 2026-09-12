@@ -1,0 +1,32 @@
+[package]
+name = "actix_server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix = "0.13"
+actix-session = { version = "0.11", features = ["cookie-session"] }
+actix-web = { version = "4", features = ["rustls-0_23"] }
+argon2 = "0.5"
+bloomfilter = "3"
+chrono = "0.4.45"
+derive_more = "2.1"
+dotenv = "0.15"
+env_logger = "0.11"
+ipnetwork = "0.21"
+regex = "1.13"
+rustls = "0.23"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sqlx = { version = "0.9", features = ["postgres", "runtime-tokio", "tls-rustls", "migrate", "macros", "chrono", "uuid", "json"] }
+tokio = { version = "1", features = ["full"] }
+thiserror = "2.0"
+validator = { version = "0.21", features = ["derive"] }
+actix-files = { version = "0.7", optional = true }
+awc = { version = "3.8", optional = true }
+url = { version = "2.2", optional = true }
+
+[features]
+default = ["serve_static"]
+serve_static = ["dep:actix-files"]
+proxy_default_service = ["dep:awc", "dep:url"]

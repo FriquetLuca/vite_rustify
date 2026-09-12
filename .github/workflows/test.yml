@@ -1,0 +1,50 @@
+name: Test and Lint
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  validate-fastify_vite_ssr:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./fastify_vite_ssr
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: ./fastify_vite_ssr/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Run Unit Tests
+        run: npm run test
+      - name: Build
+        run: npm run build
+        
+  validate-vite_csr:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./vite_csr
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: ./vite_csr/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Run Unit Tests
+        run: npm run test

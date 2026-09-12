@@ -1,0 +1,10 @@
+# rustfmt.toml
+
+# Indentation style
+tab_spaces = 2  # Same as Prettier (2 spaces indentation)
+
+# Maximum line length
+max_width = 80  # Same as Prettier (print width of 80)
+
+# Use spaces around operators
+hard_tabs = false  # Spaces instead of tabs (aligning with Prettier)
