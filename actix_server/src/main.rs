@@ -43,7 +43,7 @@ async fn main() -> std::io::Result<()> {
   }
 
   HttpServer::new(move || create_app(pool_data.clone(), bloom_filters.clone()))
-    //.bind((env_config().host_name.as_str(), env_config().host_port))?
+    .bind((env_config().host_name.as_str(), env_config().http_host_port))?
     .bind_rustls_0_23(
       (env_config().host_name.as_str(), env_config().host_port),
       rustls_config(),

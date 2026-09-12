@@ -6,15 +6,20 @@ mod error;
 mod forward;
 mod trusted_proxies_data;
 
+use crate::config::env_config;
 use crate::server::configure_default_services::configure_default_services;
 use crate::server::trusted_proxies_data::trusted_proxies_data;
 use crate::states::SharedBloom;
 use actix_web::body::MessageBody;
-use actix_web::dev::{ServiceFactory, ServiceRequest, ServiceResponse};
+use actix_web::dev::{
+  Service, ServiceFactory, ServiceRequest, ServiceResponse,
+};
+use actix_web::http;
 use actix_web::middleware::Logger;
 use actix_web::web::Data;
 use actix_web::{web, App, HttpResponse};
 use error::AppError;
+use futures_util::future::{self, Either, FutureExt};
 use sqlx::{Pool, Postgres};
 
 pub(crate) fn create_app(
@@ -60,6 +65,29 @@ pub(crate) fn create_app(
       .into(),
     });
   App::new()
+    .wrap_fn(|sreq, srv| {
+      let conn = sreq.connection_info().clone();
+      if conn.scheme() == "https" {
+        return Either::Left(srv.call(sreq).map(|res| res));
+      }
+      let host_only = conn
+        .host()
+        .split(':')
+        .next()
+        .unwrap_or(conn.host())
+        .to_owned();
+      let uri = sreq.uri().to_owned();
+      let tls_port = env_config().host_port;
+      let url = format!("https://{host_only}:{tls_port}{uri}");
+
+      Either::Right(future::ready(Ok(
+        sreq.into_response(
+          HttpResponse::MovedPermanently()
+            .append_header((http::header::LOCATION, url))
+            .finish(),
+        ),
+      )))
+    })
     .wrap(Logger::default())
     .wrap(crate::middleware::create_session_middleware())
     .app_data(json_config)

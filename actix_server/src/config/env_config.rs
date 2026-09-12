@@ -5,6 +5,7 @@ use std::sync::OnceLock;
 pub(crate) struct Config {
   pub(crate) host_name: String,
   pub(crate) host_port: u16,
+  pub(crate) http_host_port: u16,
   pub(crate) db_user: String,
   pub(crate) db_pswd: String,
   pub(crate) db_host: String,
@@ -42,7 +43,15 @@ fn load_config() -> Result<Config, ConfigError> {
             .map_err(|_| ConfigError::Parse("PORT".to_string()))
         })
         .transpose()?
-        .unwrap_or(8080),
+        .unwrap_or(443),
+      http_host_port: std::env::var("HTTP_PORT")
+        .ok()
+        .map(|host_port| {
+          u16::from_str(host_port.as_str())
+            .map_err(|_| ConfigError::Parse("HTTP_PORT".to_string()))
+        })
+        .transpose()?
+        .unwrap_or(443),
       db_user: std::env::var("PG__USER")
         .map_err(|_| ConfigError::Missing("PG__USER".to_string()))?,
       db_pswd: std::env::var("PG__PASSWORD")
@@ -94,7 +103,15 @@ fn load_config() -> Result<Config, ConfigError> {
             .map_err(|_| ConfigError::Parse("PORT".to_string()))
         })
         .transpose()?
-        .unwrap_or(8080),
+        .unwrap_or(443),
+      http_host_port: std::env::var("HTTP_PORT")
+        .ok()
+        .map(|host_port| {
+          u16::from_str(host_port.as_str())
+            .map_err(|_| ConfigError::Parse("HTTP_PORT".to_string()))
+        })
+        .transpose()?
+        .unwrap_or(443),
       db_user: std::env::var("PG__USER")
         .map_err(|_| ConfigError::Missing("PG__USER".to_string()))?,
       db_pswd: std::env::var("PG__PASSWORD")
