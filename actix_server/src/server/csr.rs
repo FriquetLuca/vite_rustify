@@ -1,7 +1,7 @@
+use crate::config::env_config;
 use actix_files::{Files, NamedFile};
 use actix_web::{web, Either, HttpResponse, Route};
 use std::path::PathBuf;
-use crate::config::env_config;
 
 fn get_dist_path() -> PathBuf {
   let manifest_dir = env!("CARGO_MANIFEST_DIR");
@@ -11,7 +11,7 @@ fn get_dist_path() -> PathBuf {
     .unwrap_or_else(|| std::path::Path::new(manifest_dir))
     .join("vite_csr")
     .join("dist");
-  
+
   if path.exists() {
     path
   } else {
@@ -21,9 +21,7 @@ fn get_dist_path() -> PathBuf {
 
 pub fn create_csr_assets() -> Files {
   Files::new(&env_config().assets_path, get_dist_path())
-    .path_filter(|path, _req| {
-      path.to_str() != Some("index.html")
-    })
+    .path_filter(|path, _req| path.to_str() != Some("index.html"))
     .show_files_listing()
 }
 
@@ -39,9 +37,7 @@ pub fn create_csr_route() -> Route {
         ),
       }
     } else {
-      Either::Right(
-        HttpResponse::NotFound().body("index.html not found"),
-      )
+      Either::Right(HttpResponse::NotFound().body("index.html not found"))
     }
   })
 }

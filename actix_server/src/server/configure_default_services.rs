@@ -1,23 +1,24 @@
+#[cfg(feature = "proxy_default_service")]
+use crate::config::env_config;
 #[cfg(not(feature = "proxy_default_service"))]
-use crate::server::csr::{create_csr_route, create_csr_assets};
+use crate::server::csr::{create_csr_assets, create_csr_route};
 #[cfg(feature = "proxy_default_service")]
 use crate::server::forward::forward;
 #[cfg(feature = "proxy_default_service")]
 use actix_web::web;
+use actix_web::web::ServiceConfig;
 #[cfg(feature = "proxy_default_service")]
-use crate::config::env_config;
+use awc::Client;
 #[cfg(feature = "proxy_default_service")]
 use std::net::ToSocketAddrs as _;
 #[cfg(feature = "proxy_default_service")]
 use url::Url;
-#[cfg(feature = "proxy_default_service")]
-use awc::Client;
-use actix_web::web::ServiceConfig;
 
 pub fn configure_default_services(cfg: &mut ServiceConfig) {
   #[cfg(feature = "proxy_default_service")]
   {
-    let forward_socket_addr = (env_config().proxy_host.clone(), env_config().proxy_port)
+    let forward_socket_addr =
+      (env_config().proxy_host.clone(), env_config().proxy_port)
         .to_socket_addrs()
         .expect("given forwarding address was not valid")
         .next()
@@ -33,7 +34,8 @@ pub fn configure_default_services(cfg: &mut ServiceConfig) {
   }
   #[cfg(not(feature = "proxy_default_service"))]
   {
-    cfg.service(create_csr_assets())
-        .default_service(create_csr_route());
+    cfg
+      .service(create_csr_assets())
+      .default_service(create_csr_route());
   }
 }

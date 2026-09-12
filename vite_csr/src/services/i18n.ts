@@ -41,7 +41,10 @@ i18n
   .init({
     ...i18nOptions,
     backend: {
-      loadPath: joinPaths(import.meta.env.VITE_BASE_PATH ?? '/', 'locales/{{ns}}/{{lng}}.json'),
+      loadPath: joinPaths(
+        import.meta.env.VITE_BASE_PATH ?? '/',
+        'locales/{{ns}}/{{lng}}.json'
+      ),
     },
     detection: {
       order: ['querystring', 'cookie', 'localStorage', 'navigator', 'htmlTag'],

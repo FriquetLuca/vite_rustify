@@ -5,7 +5,7 @@ on:
 
 jobs:
   setup:
-    if: github.run_number == 1 && github.repository != 'FriquetLuca/actix_vite'
+    if: github.run_number == 1 && github.repository != 'FriquetLuca/vite_rustify'
     runs-on: ubuntu-latest
     permissions:
       contents: write

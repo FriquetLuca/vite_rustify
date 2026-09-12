@@ -31,7 +31,10 @@ i18n
       caches: ['localStorage', 'cookie'],
     },
     backend: {
-      loadPath: joinPaths(import.meta.env.VITE_BASE_PATH ?? '/', 'locales/{{ns}}/{{lng}}.json'),
+      loadPath: joinPaths(
+        import.meta.env.VITE_BASE_PATH ?? '/',
+        'locales/{{ns}}/{{lng}}.json'
+      ),
     },
   });
 export { i18n };
