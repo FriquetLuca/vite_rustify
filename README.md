@@ -1,6 +1,7 @@
 # TEMPLATE_PRETTY_NAME
 
-![Build Status](https://github.com/TEMPLATE_OWNER/TEMPLATE_NAME/actions/workflows/deploy.yml/badge.svg)
+![Build Status](https://github.com/TEMPLATE_OWNER/TEMPLATE_NAME/actions/workflows/build.yml/badge.svg)
+![Test Status](https://github.com/TEMPLATE_OWNER/TEMPLATE_NAME/actions/workflows/test.yml/badge.svg)
 
 A modern full-stack web application template featuring flexible **SSR** (Server-Side Rendering) and **CSR** (Client-Side Rendering) options, built-in HTTPS, PostgreSQL integration, and Vite tooling.
 

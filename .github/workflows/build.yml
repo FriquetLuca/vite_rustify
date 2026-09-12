@@ -1,0 +1,82 @@
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-fastify_vite_ssr:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./fastify_vite_ssr
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: ./fastify_vite_ssr/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+
+      - name: Upload SSR assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: ssr-dist
+          path: ./fastify_vite_ssr/dist
+
+  build-vite_csr:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./vite_csr
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: ./vite_csr/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+
+      - name: Upload CSR assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: csr-dist
+          path: ./vite_csr/dist
+
+  build-server:
+    needs: [build-vite_csr]
+    if: always() && !cancelled() && !contains(needs.*.result, 'failure')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download CSR assets
+        uses: actions/download-artifact@v4
+        with:
+          name: csr-dist
+          path: ./vite_csr/dist
+        continue-on-error: true
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Typecheck and lint checks
+        run: cargo check --all-targets
+
+      - name: Build release binary
+        run: cargo build --release
