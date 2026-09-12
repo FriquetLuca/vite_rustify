@@ -1,6 +1,6 @@
-# TEMPLATE_PRETTY_NAME
+# Vite Rustify
 
-![Build Status](https://github.com/TEMPLATE_OWNER/TEMPLATE_NAME/actions/workflows/deploy.yml/badge.svg)
+![Build Status](https://github.com/FriquetLuca/vite_rustify/actions/workflows/deploy.yml/badge.svg)
 
 A modern full-stack web application template featuring flexible **SSR** (Server-Side Rendering) and **CSR** (Client-Side Rendering) options, built-in HTTPS, PostgreSQL integration, and Vite tooling.
 
@@ -51,8 +51,8 @@ Ensure you have the following installed on your development machine:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/TEMPLATE_OWNER/TEMPLATE_NAME.git
-cd TEMPLATE_NAME
+git clone https://github.com/FriquetLuca/vite_rustify.git
+cd vite_rustify
 ```
 
 ### 2. Database Setup

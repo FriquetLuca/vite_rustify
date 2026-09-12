@@ -1,16 +1,16 @@
 {
-  "name": "TEMPLATE_NAME",
+  "name": "vite_rustify",
   "version": "0.0.0",
   "type": "module",
   "keywords": [],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TEMPLATE_OWNER/TEMPLATE_NAME.git"
+    "url": "git+https://github.com/FriquetLuca/vite_rustify.git"
   },
   "bugs": {
-    "url": "https://github.com/TEMPLATE_OWNER/TEMPLATE_NAME/issues"
+    "url": "https://github.com/FriquetLuca/vite_rustify/issues"
   },
-  "homepage": "https://github.com/TEMPLATE_OWNER/TEMPLATE_NAME#readme",
+  "homepage": "https://github.com/FriquetLuca/vite_rustify#readme",
   "scripts": {
     "dev": "vite",
     "build": "vite build --mode production",
