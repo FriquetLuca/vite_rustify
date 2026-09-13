@@ -22,6 +22,7 @@ A modern full-stack web application template featuring flexible **SSR** (Server-
   - [Server Features & Proxies](#server-features--proxies)
   - [Frontend Architecture & Vite](#frontend-architecture--vite)
 - [🚀 Scripts & Workflows](#-scripts--workflows)
+  - [Flags](#flags)
 
 ---
 
@@ -193,3 +194,16 @@ Dynamic parameters are designated using the `[param]` syntax within filenames.
 | `./fmt.sh` | Formats code according to project style guidelines. |
 | `./build.sh` | Compiles assets and builds the application for production. |
 | `./start.sh` | Executes the built production bundle *(Requires prior execution of `./build.sh`)*. |
+
+### Flags
+
+| Script | Flag | Effect |
+| :--- | :--- | :--- |
+| `./dev.sh` | `--log` | Sets `RUST_LOG=debug` for the actix server. Omit for no logging output. |
+| `./build.sh` | `--release` | Builds the actix server in release mode (`cargo build --release`). Omit for a debug build. |
+
+**Examples:**
+```bash
+./dev.sh --log          # dev server with debug logging
+./build.sh --release    # production release build
+```

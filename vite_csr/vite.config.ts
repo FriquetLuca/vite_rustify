@@ -38,7 +38,7 @@ export default defineConfig(({ mode }) => {
     envDir: '../',
     server: {
       cors: true,
-      host: env.VITE_HOST || '0.0.0.0',
+      host: env.VITE_HOST ?? '0.0.0.0',
       port: Number(env.VITE_PORT) || 5173,
       ws: {
         clientPort: Number(env.PUBLIC_PORT) || 443,
