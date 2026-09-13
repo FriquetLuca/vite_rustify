@@ -5,6 +5,10 @@ use crate::server::csr::{create_csr_assets, create_csr_route};
 #[cfg(feature = "proxy_default_service")]
 use crate::server::forward::forward;
 #[cfg(feature = "proxy_default_service")]
+use crate::server::forward::ForwardUrl;
+#[cfg(feature = "vite_hmr_proxy")]
+use crate::server::ws_hmr_proxy::configure_hmr_proxy;
+#[cfg(feature = "proxy_default_service")]
 use actix_web::web;
 use actix_web::web::ServiceConfig;
 #[cfg(feature = "proxy_default_service")]
@@ -24,13 +28,17 @@ pub fn configure_default_services(cfg: &mut ServiceConfig) {
         .next()
         .expect("given forwarding address was not valid");
 
-    let forward_url = format!("http://{forward_socket_addr}");
-    let forward_url = Url::parse(&forward_url).unwrap();
+    let forward_url =
+      Url::parse(&format!("http://{forward_socket_addr}")).unwrap();
 
     cfg
       .app_data(web::Data::new(Client::default()))
-      .app_data(web::Data::new(forward_url.clone()))
-      .default_service(web::to(forward));
+      .app_data(web::Data::new(ForwardUrl(forward_url)));
+
+    #[cfg(feature = "vite_hmr_proxy")]
+    configure_hmr_proxy(cfg);
+
+    cfg.default_service(web::to(forward));
   }
   #[cfg(not(feature = "proxy_default_service"))]
   {

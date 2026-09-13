@@ -6,6 +6,8 @@ mod error;
 mod forward;
 mod https_redirect;
 mod is_secure_request;
+#[cfg(feature = "vite_hmr_proxy")]
+mod ws_hmr_proxy;
 
 use crate::config::env_config;
 use crate::server::configure_default_services::configure_default_services;

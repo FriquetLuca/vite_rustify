@@ -5,6 +5,8 @@ use actix_web::{dev::PeerAddr, error, web, Error, HttpRequest, HttpResponse};
 use awc::Client;
 use url::Url;
 
+pub struct ForwardUrl(pub Url);
+
 /// Builds a `Forwarded` header value per RFC 7239.
 ///
 /// If the immediate peer is a trusted proxy, any existing `Forwarded` header
@@ -86,11 +88,11 @@ pub async fn forward(
   req: HttpRequest,
   payload: web::Payload,
   peer_addr: Option<PeerAddr>,
-  url: web::Data<Url>,
+  url: web::Data<ForwardUrl>,
   client: web::Data<Client>,
   trusted_proxies: web::Data<TrustedProxies>,
 ) -> Result<HttpResponse, Error> {
-  let mut new_url = (**url).clone();
+  let mut new_url = url.0.clone();
   new_url.set_path(req.uri().path());
   new_url.set_query(req.uri().query());
 

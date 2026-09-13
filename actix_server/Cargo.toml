@@ -23,6 +23,8 @@ sqlx = { version = "0.9", features = ["postgres", "runtime-tokio", "tls-rustls",
 tokio = { version = "1", features = ["full"] }
 thiserror = "2.0"
 validator = { version = "0.21", features = ["derive"] }
+
+actix-ws = { version = "0.4", optional = true }
 actix-files = { version = "0.7", optional = true }
 awc = { version = "3.8", optional = true }
 url = { version = "2.2", optional = true }
@@ -31,3 +33,4 @@ url = { version = "2.2", optional = true }
 default = ["serve_static"]
 serve_static = ["dep:actix-files"]
 proxy_default_service = ["dep:awc", "dep:url"]
+vite_hmr_proxy = ["dep:actix-ws"]
