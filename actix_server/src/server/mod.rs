@@ -4,11 +4,11 @@ mod csr;
 mod error;
 #[cfg(feature = "proxy_default_service")]
 mod forward;
-mod trusted_proxies_data;
+mod is_secure_request;
 
 use crate::config::env_config;
 use crate::server::configure_default_services::configure_default_services;
-use crate::server::trusted_proxies_data::trusted_proxies_data;
+use crate::server::is_secure_request::is_secure_request;
 use crate::states::SharedBloom;
 use actix_web::body::MessageBody;
 use actix_web::dev::{
@@ -64,21 +64,22 @@ pub(crate) fn create_app(
       )
       .into(),
     });
+  let trusted_proxies = env_config().trusted_proxies.clone();
   App::new()
     .wrap_fn(|sreq, srv| {
-      let conn = sreq.connection_info().clone();
-      if conn.scheme() == "https" {
+      if is_secure_request(&sreq) {
         return Either::Left(srv.call(sreq).map(|res| res));
       }
-      let host_only = conn
-        .host()
-        .split(':')
-        .next()
-        .unwrap_or(conn.host())
-        .to_owned();
+
       let uri = sreq.uri().to_owned();
-      let tls_port = env_config().host_port;
-      let url = format!("https://{host_only}:{tls_port}{uri}");
+      let host_only = &env_config().public_host_name;
+      let public_port = env_config().public_host_port;
+
+      let url = if public_port == 443 {
+        format!("https://{host_only}{uri}")
+      } else {
+        format!("https://{host_only}:{public_port}{uri}")
+      };
 
       Either::Right(future::ready(Ok(
         sreq.into_response(
@@ -93,7 +94,7 @@ pub(crate) fn create_app(
     .app_data(json_config)
     .app_data(pool_data.clone())
     .app_data(Data::new(bloom_filters.clone()))
-    .app_data(Data::new(trusted_proxies_data()))
+    .app_data(Data::new(trusted_proxies))
     .service(crate::api::create_router())
     .configure(configure_default_services)
 }

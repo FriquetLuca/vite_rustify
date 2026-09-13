@@ -22,7 +22,6 @@ fn get_dist_path() -> PathBuf {
 pub fn create_csr_assets() -> Files {
   Files::new(&env_config().assets_path, get_dist_path())
     .path_filter(|path, _req| path.to_str() != Some("index.html"))
-    .show_files_listing()
 }
 
 pub fn create_csr_route() -> Route {

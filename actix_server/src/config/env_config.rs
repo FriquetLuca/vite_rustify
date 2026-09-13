@@ -2,16 +2,21 @@ use dotenv::dotenv;
 use std::str::FromStr;
 use std::sync::OnceLock;
 
+use crate::states::TrustedProxies;
+
 pub(crate) struct Config {
   pub(crate) host_name: String,
   pub(crate) host_port: u16,
   pub(crate) http_host_port: u16,
+  pub(crate) public_host_name: String,
+  pub(crate) public_host_port: u16,
   pub(crate) db_user: String,
   pub(crate) db_pswd: String,
   pub(crate) db_host: String,
   pub(crate) db_port: usize,
   pub(crate) db_database: String,
   pub(crate) session_secret: Option<String>,
+  pub(crate) trusted_proxies: TrustedProxies,
   #[cfg(not(feature = "proxy_default_service"))]
   pub(crate) assets_path: String,
   #[cfg(feature = "proxy_default_service")]
@@ -31,6 +36,15 @@ pub enum ConfigError {
 }
 
 fn load_config() -> Result<Config, ConfigError> {
+  let raw_proxies = std::env::var("TRUSTED_PROXIES").unwrap_or_default();
+  let proxy_entries: Vec<&str> = raw_proxies
+    .split(',')
+    .map(str::trim)
+    .filter(|s| !s.is_empty())
+    .collect();
+  let trusted_proxies = TrustedProxies::from_strs(proxy_entries)
+    .expect("TRUSTED_PROXIES contains an invalid IP or CIDR entry");
+
   #[cfg(test)]
   {
     Ok(Config {
@@ -49,6 +63,16 @@ fn load_config() -> Result<Config, ConfigError> {
         .map(|host_port| {
           u16::from_str(host_port.as_str())
             .map_err(|_| ConfigError::Parse("HTTP_PORT".to_string()))
+        })
+        .transpose()?
+        .unwrap_or(443),
+      public_host_name: std::env::var("PUBLIC_HOST")
+        .unwrap_or_else(|_| String::from("0.0.0.0")),
+      public_host_port: std::env::var("PUBLIC_PORT")
+        .ok()
+        .map(|host_port| {
+          u16::from_str(host_port.as_str())
+            .map_err(|_| ConfigError::Parse("PUBLIC_PORT".to_string()))
         })
         .transpose()?
         .unwrap_or(443),
@@ -89,6 +113,7 @@ fn load_config() -> Result<Config, ConfigError> {
         })
         .transpose()?
         .unwrap_or(5173),
+      trusted_proxies,
     })
   }
   #[cfg(not(test))]
@@ -109,6 +134,16 @@ fn load_config() -> Result<Config, ConfigError> {
         .map(|host_port| {
           u16::from_str(host_port.as_str())
             .map_err(|_| ConfigError::Parse("HTTP_PORT".to_string()))
+        })
+        .transpose()?
+        .unwrap_or(443),
+      public_host_name: std::env::var("PUBLIC_HOST")
+        .unwrap_or_else(|_| String::from("0.0.0.0")),
+      public_host_port: std::env::var("PUBLIC_PORT")
+        .ok()
+        .map(|host_port| {
+          u16::from_str(host_port.as_str())
+            .map_err(|_| ConfigError::Parse("PUBLIC_PORT".to_string()))
         })
         .transpose()?
         .unwrap_or(443),
@@ -150,6 +185,7 @@ fn load_config() -> Result<Config, ConfigError> {
         })
         .transpose()?
         .unwrap_or(5173),
+      trusted_proxies,
     })
   }
 }
