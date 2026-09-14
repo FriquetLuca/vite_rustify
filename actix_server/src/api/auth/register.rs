@@ -1,3 +1,4 @@
+use crate::states::SharedBloom;
 use actix_web::{
   http::StatusCode, post, web, HttpResponse, Responder, ResponseError,
 };
@@ -7,9 +8,8 @@ use rand_core::OsRng;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use validator::{Validate, ValidationError};
 use uuid::Uuid;
-use crate::states::SharedBloom;
+use validator::{Validate, ValidationError};
 
 fn validate_username(username: &str) -> Result<(), ValidationError> {
   let username_regex =
@@ -59,8 +59,7 @@ struct NewUser {
 
 impl ResponseError for RegisterError {
   fn error_response(&self) -> HttpResponse {
-    HttpResponse::build(self.status_code())
-      .json(self)
+    HttpResponse::build(self.status_code()).json(self)
   }
   fn status_code(&self) -> StatusCode {
     match self {
@@ -142,13 +141,10 @@ pub async fn register_route(
     f.user_filter.set(&user.username);
     f.email_filter.set(&user.email);
   }
-  
-  Ok(
-    HttpResponse::Created()
-    .json(serde_json::json!({
-      "id": user.id.to_string(),
-      "username": user.username,
-      "email": user.email,
-    }))
-  )
+
+  Ok(HttpResponse::Created().json(serde_json::json!({
+    "id": user.id.to_string(),
+    "username": user.username,
+    "email": user.email,
+  })))
 }

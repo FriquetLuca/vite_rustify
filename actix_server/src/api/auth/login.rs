@@ -2,11 +2,11 @@ use actix_session::Session;
 use actix_web::{
   http::StatusCode, post, web, HttpResponse, Responder, ResponseError,
 };
-use argon2::{PasswordHash, Argon2, PasswordVerifier};
+use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use validator::Validate;
 use uuid::Uuid;
+use validator::Validate;
 
 use crate::session::UserSession;
 use crate::states::SharedBloom;
@@ -38,8 +38,7 @@ enum LoginError {
 
 impl ResponseError for LoginError {
   fn error_response(&self) -> HttpResponse {
-    HttpResponse::build(self.status_code())
-      .json(self)
+    HttpResponse::build(self.status_code()).json(self)
   }
   fn status_code(&self) -> StatusCode {
     match self {
@@ -93,16 +92,15 @@ pub async fn login_route(
     .is_ok()
   {
     session.clear();
-    let _ = UserSession { id: user.id.to_string() }
-      .store_session(&session)
-      .map_err(|_| LoginError::InternalServerError)?;
-    Ok(
-      HttpResponse::Ok()
-      .json(serde_json::json!({
-          "id": user.id.to_string(),
-          "username": user.username,
-      }))
-    )
+    let _ = UserSession {
+      id: user.id.to_string(),
+    }
+    .store_session(&session)
+    .map_err(|_| LoginError::InternalServerError)?;
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "id": user.id.to_string(),
+        "username": user.username,
+    })))
   } else {
     Err(LoginError::Unauthorized)
   }

@@ -4,14 +4,12 @@ mod csr;
 mod error;
 #[cfg(feature = "proxy_default_service")]
 mod forward;
-mod https_redirect;
-mod is_secure_request;
 #[cfg(feature = "vite_hmr_proxy")]
 mod ws_hmr_proxy;
 
 use crate::config::env_config;
+use crate::middleware::{session_middleware, HttpsRedirect};
 use crate::server::configure_default_services::configure_default_services;
-use crate::server::https_redirect::HttpsRedirect;
 use crate::states::SharedBloom;
 use actix_web::body::MessageBody;
 use actix_web::dev::{ServiceFactory, ServiceRequest, ServiceResponse};
@@ -70,7 +68,7 @@ pub(crate) fn create_app(
       env_config().public_host_port,
     ))
     .wrap(Logger::default())
-    .wrap(crate::middleware::create_session_middleware())
+    .wrap(session_middleware())
     .app_data(json_config)
     .app_data(pool_data.clone())
     .app_data(Data::new(bloom_filters.clone()))
