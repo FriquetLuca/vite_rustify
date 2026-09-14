@@ -3,9 +3,7 @@ use crate::config::env_config;
 #[cfg(not(feature = "proxy_default_service"))]
 use crate::server::csr::{create_csr_assets, create_csr_route};
 #[cfg(feature = "proxy_default_service")]
-use crate::server::forward::forward;
-#[cfg(feature = "proxy_default_service")]
-use crate::server::forward::ForwardUrl;
+use crate::server::forward::{forward, ForwardUrl};
 #[cfg(feature = "vite_hmr_proxy")]
 use crate::server::ws_hmr_proxy::configure_hmr_proxy;
 #[cfg(feature = "proxy_default_service")]

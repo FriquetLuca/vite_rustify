@@ -4,7 +4,7 @@ use rustls::{
   ServerConfig,
 };
 
-pub(crate) fn rustls_config() -> ServerConfig {
+pub fn rustls_config() -> ServerConfig {
   default_provider().install_default().unwrap();
 
   // load TLS key/cert files
