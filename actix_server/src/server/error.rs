@@ -1,4 +1,3 @@
-use crate::models::DataResponse;
 use actix_web::http::header::ContentType;
 use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, ResponseError};
@@ -18,14 +17,9 @@ pub enum AppError {
 
 impl ResponseError for AppError {
   fn error_response(&self) -> HttpResponse {
-    let body = DataResponse::<(), AppError> {
-      success: false,
-      data: None,
-      error: Some(self.clone()), // Requires Clone on the enum
-    };
     HttpResponse::build(self.status_code())
       .insert_header(ContentType::json())
-      .json(body)
+      .json(self)
   }
   fn status_code(&self) -> StatusCode {
     match self {

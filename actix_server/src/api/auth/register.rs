@@ -1,16 +1,14 @@
 use actix_web::{
   http::StatusCode, post, web, HttpResponse, Responder, ResponseError,
 };
-use argon2::{
-  password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
-  Argon2,
-};
+use argon2::{Argon2, PasswordHasher};
+use password_hash::SaltString;
+use rand_core::OsRng;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use validator::{Validate, ValidationError};
-
-use crate::models::DataResponse;
+use uuid::Uuid;
 use crate::states::SharedBloom;
 
 fn validate_username(username: &str) -> Result<(), ValidationError> {
@@ -52,14 +50,17 @@ enum RegisterError {
   BadRequest,
 }
 
+#[derive(sqlx::FromRow)]
+struct NewUser {
+  id: Uuid,
+  username: String,
+  email: String,
+}
+
 impl ResponseError for RegisterError {
   fn error_response(&self) -> HttpResponse {
-    DataResponse::<(), RegisterError> {
-      success: false,
-      data: None,
-      error: Some(self.clone()),
-    }
-    .to_response()
+    HttpResponse::build(self.status_code())
+      .json(self)
   }
   fn status_code(&self) -> StatusCode {
     match self {
@@ -119,32 +120,35 @@ pub async fn register_route(
   let salt = SaltString::generate(&mut OsRng);
 
   let hash = argon2
-    .hash_password(req.password.as_bytes(), &salt)
+    .hash_password_with_salt(req.password.as_bytes(), salt.as_str().as_bytes())
     .map_err(|_| RegisterError::InternalServerError)?
     .to_string();
 
-  let result = sqlx::query(
-    "INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3)",
+  let result = sqlx::query_as::<_, NewUser>(
+    "INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email;",
   )
   .bind(&req.username)
   .bind(&req.email)
   .bind(&hash)
-  .execute(&**pool)
+  .fetch_one(&**pool)
   .await;
 
-  let _ = result.map_err(|_| RegisterError::InternalServerError)?;
+  let user = result.map_err(|_| RegisterError::InternalServerError)?;
 
   {
     let mut f = filters
       .write()
       .map_err(|_| RegisterError::InternalServerError)?;
-    f.user_filter.set(&req.username);
-    f.email_filter.set(&req.email);
+    f.user_filter.set(&user.username);
+    f.email_filter.set(&user.email);
   }
-
-  Ok(DataResponse::<(), RegisterError> {
-    success: true,
-    data: None,
-    error: None,
-  })
+  
+  Ok(
+    HttpResponse::Created()
+    .json(serde_json::json!({
+      "id": user.id.to_string(),
+      "username": user.username,
+      "email": user.email,
+    }))
+  )
 }

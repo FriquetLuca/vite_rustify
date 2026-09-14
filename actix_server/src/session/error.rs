@@ -4,8 +4,6 @@ use actix_web::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::models::DataResponse;
-
 #[derive(
   Debug, Clone, derive_more::Display, derive_more::Error, Serialize, Deserialize,
 )]
@@ -24,11 +22,7 @@ impl ResponseError for SessionError {
   fn error_response(&self) -> HttpResponse {
     HttpResponse::build(self.status_code())
       .insert_header(ContentType::json())
-      .json(DataResponse::<(), SessionError> {
-        success: false,
-        data: None,
-        error: Some(self.clone()), // Requires Clone on the enum
-      })
+      .json(self)
   }
   fn status_code(&self) -> StatusCode {
     match self {

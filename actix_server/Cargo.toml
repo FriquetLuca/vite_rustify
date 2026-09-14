@@ -7,7 +7,9 @@ edition = "2021"
 actix = "0.13"
 actix-session = { version = "0.11", features = ["cookie-session"] }
 actix-web = { version = "4", features = ["rustls-0_23"] }
-argon2 = "0.5"
+argon2 = "0.6"
+rand_core = { version = "0.6", features = ["getrandom"] }
+password-hash = "0.5"
 bloomfilter = "3"
 chrono = "0.4.45"
 derive_more = "2.1"
@@ -23,11 +25,11 @@ sqlx = { version = "0.9", features = ["postgres", "runtime-tokio", "tls-rustls",
 tokio = { version = "1", features = ["full"] }
 thiserror = "2.0"
 validator = { version = "0.21", features = ["derive"] }
-
 actix-ws = { version = "0.4", optional = true }
 actix-files = { version = "0.7", optional = true }
 awc = { version = "3.8", optional = true }
 url = { version = "2.2", optional = true }
+uuid = { version = "1.26.1", features = ["v4"] }
 
 [features]
 default = ["serve_static"]

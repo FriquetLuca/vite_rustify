@@ -2,7 +2,6 @@ mod api;
 mod config;
 mod db;
 mod middleware;
-mod models;
 mod server;
 mod session;
 mod states;

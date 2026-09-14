@@ -2,21 +2,19 @@ use actix_session::Session;
 use actix_web::{
   http::StatusCode, post, web, HttpResponse, Responder, ResponseError,
 };
-use argon2::{
-  password_hash::{PasswordHash, PasswordVerifier},
-  Argon2,
-};
+use argon2::{PasswordHash, Argon2, PasswordVerifier};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use validator::Validate;
+use uuid::Uuid;
 
-use crate::models::DataResponse;
 use crate::session::UserSession;
 use crate::states::SharedBloom;
 
 #[derive(sqlx::FromRow)]
 struct UserCell {
-  id: String,
+  id: Uuid,
+  username: String,
   password_hash: String,
 }
 
@@ -40,12 +38,8 @@ enum LoginError {
 
 impl ResponseError for LoginError {
   fn error_response(&self) -> HttpResponse {
-    DataResponse::<(), LoginError> {
-      success: false,
-      data: None,
-      error: Some(self.clone()),
-    }
-    .to_response()
+    HttpResponse::build(self.status_code())
+      .json(self)
   }
   fn status_code(&self) -> StatusCode {
     match self {
@@ -84,7 +78,7 @@ pub async fn login_route(
   }
 
   let user = sqlx::query_as::<_, UserCell>(
-    "SELECT id::TEXT, password_hash FROM users WHERE email = $1",
+    "SELECT id, username, password_hash FROM users WHERE email = $1",
   )
   .bind(&req.email)
   .fetch_one(&**pool)
@@ -99,14 +93,16 @@ pub async fn login_route(
     .is_ok()
   {
     session.clear();
-    let _ = UserSession { id: user.id }
+    let _ = UserSession { id: user.id.to_string() }
       .store_session(&session)
       .map_err(|_| LoginError::InternalServerError)?;
-    Ok(DataResponse::<(), LoginError> {
-      success: true,
-      data: None,
-      error: None,
-    })
+    Ok(
+      HttpResponse::Ok()
+      .json(serde_json::json!({
+          "id": user.id.to_string(),
+          "username": user.username,
+      }))
+    )
   } else {
     Err(LoginError::Unauthorized)
   }
