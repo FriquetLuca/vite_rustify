@@ -9,3 +9,4 @@ mod forward;
 mod ws_hmr_proxy;
 
 pub(crate) use create_app::create_app;
+pub use error::AppError;

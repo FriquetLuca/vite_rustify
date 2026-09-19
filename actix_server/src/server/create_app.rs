@@ -1,5 +1,5 @@
 use crate::config::env_config;
-use crate::middleware::{session_middleware, HttpsRedirect};
+use crate::middleware::{session_middleware, HttpsRedirect, SessionValidation};
 use crate::server::{
   configure_default_services::configure_default_services, error::AppError,
 };
@@ -61,6 +61,7 @@ pub fn create_app(
       env_config().public_host_port,
     ))
     .wrap(Logger::default())
+    .wrap(SessionValidation)
     .wrap(session_middleware())
     .app_data(json_config)
     .app_data(pool_data.clone())

@@ -1,15 +1,17 @@
 mod api;
 mod config;
 mod db;
+mod extractors;
 mod middleware;
 mod server;
 mod session;
 mod states;
 
 use crate::config::{env_config, rustls_config};
-use crate::db::migrate;
+use crate::db::{create_db, run_migrations};
 use crate::server::create_app;
 use crate::states::BloomFtr;
+use actix_web::web::Data;
 use actix_web::HttpServer;
 use std::sync::Arc;
 
@@ -25,7 +27,11 @@ async fn main() -> std::io::Result<()> {
     env_config().host_port
   );
 
-  let pool_data = migrate().await.unwrap();
+  let pool = create_db(None).await.unwrap();
+
+  run_migrations(&pool).await.unwrap();
+
+  let pool_data = Data::new(pool.clone());
 
   {
     let mut filters = bloom_filters.write().unwrap();

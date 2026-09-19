@@ -1,14 +1,11 @@
-use crate::states::SharedBloom;
-use actix_web::{
-  http::StatusCode, post, web, HttpResponse, Responder, ResponseError,
-};
+use crate::{server::AppError, states::SharedBloom};
+use actix_web::{post, web, HttpResponse, Responder};
 use argon2::{Argon2, PasswordHasher};
 use password_hash::SaltString;
 use rand_core::OsRng;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sqlx::PgPool;
-use uuid::Uuid;
 use validator::{Validate, ValidationError};
 
 fn validate_username(username: &str) -> Result<(), ValidationError> {
@@ -38,46 +35,10 @@ struct RegisterRequest {
   pub password: String,
 }
 
-#[derive(Debug, Clone, derive_more::Display, derive_more::Error)]
-enum RegisterError {
-  #[display("INTERNAL_SERVER_ERROR")]
-  InternalServerError,
-  #[display("USER_EXIST")]
-  UserExist,
-  #[display("EMAIL_EXIST")]
-  EmailExist,
-  #[display("BAD_REQUEST")]
-  BadRequest,
-}
-
 #[derive(sqlx::FromRow)]
 struct NewUser {
-  id: Uuid,
   username: String,
   email: String,
-}
-
-impl ResponseError for RegisterError {
-  fn error_response(&self) -> HttpResponse {
-    HttpResponse::build(self.status_code()).json(self)
-  }
-  fn status_code(&self) -> StatusCode {
-    match self {
-      RegisterError::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
-      RegisterError::UserExist => StatusCode::CONFLICT,
-      RegisterError::EmailExist => StatusCode::CONFLICT,
-      RegisterError::BadRequest => StatusCode::BAD_REQUEST,
-    }
-  }
-}
-
-impl Serialize for RegisterError {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    serializer.serialize_str(&self.to_string())
-  }
 }
 
 #[post("/register")]
@@ -85,13 +46,11 @@ pub async fn register_route(
   pool: web::Data<PgPool>,
   filters: web::Data<SharedBloom>,
   req: web::Json<RegisterRequest>,
-) -> Result<impl Responder, RegisterError> {
-  req.0.validate().map_err(|_| RegisterError::BadRequest)?;
+) -> Result<impl Responder, AppError> {
+  req.0.validate().map_err(|_| AppError::BadRequest)?;
 
   {
-    let f = filters
-      .read()
-      .map_err(|_| RegisterError::InternalServerError)?;
+    let f = filters.read().map_err(|_| AppError::InternalServerError)?;
 
     if f.email_filter.check(&req.email) {
       sqlx::query_scalar::<_, i64>(
@@ -100,7 +59,7 @@ pub async fn register_route(
       .bind(&req.email)
       .fetch_optional(&**pool)
       .await
-      .map_err(|_| RegisterError::EmailExist)?;
+      .map_err(|_| AppError::conflict("EMAIL_EXIST"))?;
     }
 
     if f.user_filter.check(&req.username) {
@@ -110,7 +69,7 @@ pub async fn register_route(
       .bind(&req.username)
       .fetch_optional(&**pool)
       .await
-      .map_err(|_| RegisterError::UserExist)?;
+      .map_err(|_| AppError::conflict("USER_EXIST"))?;
     }
   }
 
@@ -120,30 +79,25 @@ pub async fn register_route(
 
   let hash = argon2
     .hash_password_with_salt(req.password.as_bytes(), salt.as_str().as_bytes())
-    .map_err(|_| RegisterError::InternalServerError)?
+    .map_err(|_| AppError::InternalServerError)?
     .to_string();
 
-  let result = sqlx::query_as::<_, NewUser>(
-    "INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email;",
+  let user = sqlx::query_as::<_, NewUser>(
+    "INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING username, email",
   )
-  .bind(&req.username)
-  .bind(&req.email)
-  .bind(&hash)
-  .fetch_one(&**pool)
-  .await;
-
-  let user = result.map_err(|_| RegisterError::InternalServerError)?;
+    .bind(&req.username)
+    .bind(&req.email)
+    .bind(&hash)
+    .fetch_one(&**pool)
+    .await?;
 
   {
-    let mut f = filters
-      .write()
-      .map_err(|_| RegisterError::InternalServerError)?;
+    let mut f = filters.write().map_err(|_| AppError::InternalServerError)?;
     f.user_filter.set(&user.username);
     f.email_filter.set(&user.email);
   }
 
   Ok(HttpResponse::Created().json(serde_json::json!({
-    "id": user.id.to_string(),
     "username": user.username,
     "email": user.email,
   })))

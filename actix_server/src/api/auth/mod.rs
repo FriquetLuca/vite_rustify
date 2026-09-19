@@ -1,6 +1,7 @@
 mod login;
 mod logout;
 mod register;
+mod whoami;
 
 use actix_web::{web, Scope};
 
@@ -9,4 +10,5 @@ pub fn create_router() -> Scope {
     .service(register::register_route)
     .service(login::login_route)
     .service(logout::logout_route)
+    .service(whoami::whoami_route)
 }
