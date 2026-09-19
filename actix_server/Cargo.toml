@@ -30,6 +30,7 @@ actix-files = { version = "0.7", optional = true }
 awc = { version = "3.8", optional = true }
 url = { version = "2.2", optional = true }
 uuid = { version = "1.26.1", features = ["v4"] }
+woothee = "0.13"
 
 [features]
 default = ["serve_static"]

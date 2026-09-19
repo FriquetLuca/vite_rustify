@@ -195,13 +195,13 @@ This project uses SQLx migrations for PostgreSQL.
 To create a new reversible migration (with both apply and rollback scripts), run:
 
 ```bash
-sqlx migrate add -r <migration_name>
+sqlx migrate add -r --source actix_server/migrations <migration_name>
 ```
 
 For example:
 
 ```bash
-sqlx migrate add -r add_users_table
+sqlx migrate add -r --source actix_server/migrations add_users_table
 ```
 
 This creates two files in `migrations/`:
@@ -236,13 +236,13 @@ The project will run all migrations itself, but it's possible to run it yourself
 Apply pending migrations:
 
 ```bash
-sqlx migrate run
+sqlx migrate run --source actix_server/migrations
 ```
 
 Revert the most recently applied reversible migration:
 
 ```bash
-sqlx migrate revert
+sqlx migrate revert --source actix_server/migrations
 ```
 
 SQLx reads the PostgreSQL connection string from `DATABASE_URL`, which can be set in your shell environment or in a local `.env` file:
