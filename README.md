@@ -21,6 +21,7 @@ A modern full-stack web application template featuring flexible **SSR** (Server-
   - [Environment Architecture](#environment-architecture)
   - [Server Features & Proxies](#server-features--proxies)
   - [Frontend Architecture & Vite](#frontend-architecture--vite)
+  - [Database Migrations](#database-migrations)
 - [🚀 Scripts & Workflows](#-scripts--workflows)
   - [Flags](#flags)
 
@@ -44,6 +45,7 @@ Ensure you have the following installed on your development machine:
 - [PostgreSQL](https://www.postgresql.org/)
 - [Node.js](https://nodejs.org/) (with `npm`)
 - [Rust & Cargo](https://www.rust-lang.org/)
+- [SQLx CLI](https://github.com/transact-rs/sqlx/blob/main/sqlx-cli/README.md) (for database migrations)
 - [mkcert](https://github.com/FiloSottile/mkcert) (for local HTTPS setup)
 
 ---
@@ -183,6 +185,71 @@ Pages reside in `src/pages/`. Directory index files map directly to route roots:
 | `src/pages/user/usr-[id].tsx` | `/user/usr-123` *(Dynamic Param)* |
 
 Dynamic parameters are designated using the `[param]` syntax within filenames.
+
+### Database Migrations
+
+This project uses SQLx migrations for PostgreSQL.
+
+#### Migration Files
+
+To create a new reversible migration (with both apply and rollback scripts), run:
+
+```bash
+sqlx migrate add -r <migration_name>
+```
+
+For example:
+
+```bash
+sqlx migrate add -r add_users_table
+```
+
+This creates two files in `migrations/`:
+
+```bash
+<timestamp>_add_users_table.up.sql
+<timestamp>_add_users_table.down.sql
+```
+
+- Put the schema change in the `.up.sql` file.
+- Put the rollback operation in the `.down.sql` file.
+
+Example:
+
+```sql
+-- <timestamp>_add_users_table.up.sql
+CREATE TABLE users (
+  id UUID PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE
+);
+```
+
+```sql
+-- <timestamp>_add_users_table.down.sql
+DROP TABLE users;
+```
+
+#### Migrations & Rollbacks
+
+The project will run all migrations itself, but it's possible to run it yourself instead of running the server.
+
+Apply pending migrations:
+
+```bash
+sqlx migrate run
+```
+
+Revert the most recently applied reversible migration:
+
+```bash
+sqlx migrate revert
+```
+
+SQLx reads the PostgreSQL connection string from `DATABASE_URL`, which can be set in your shell environment or in a local `.env` file:
+
+```dotenv
+DATABASE_URL=postgres://user:password@localhost:5432/database_name
+```
 
 ---
 
