@@ -35,7 +35,7 @@ pub async fn create_session(
     SessionKind::Standard => {
       sqlx::query_scalar(
         "INSERT INTO sessions (user_id, privilege_level, device_label)
-                 VALUES ($1, $2)
+                 VALUES ($1, $2, $3)
                  RETURNING id",
       )
       .bind(user_id)

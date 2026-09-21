@@ -12,10 +12,12 @@ pub fn load_env() -> Result<Config, ConfigError> {
     .collect();
   let trusted_proxies = TrustedProxies::from_strs(proxy_entries)
     .expect("TRUSTED_PROXIES contains an invalid IP or CIDR entry");
+  let default_host = "0.0.0.0".to_string();
+  let default_host_port = 443;
 
   Ok(Config {
     host_name: std::env::var("HOST")
-      .unwrap_or_else(|_| String::from("0.0.0.0")),
+      .unwrap_or_else(|_| default_host.clone()),
     host_port: std::env::var("PORT")
       .ok()
       .map(|host_port| {
@@ -23,7 +25,7 @@ pub fn load_env() -> Result<Config, ConfigError> {
           .map_err(|_| ConfigError::Parse("PORT".to_string()))
       })
       .transpose()?
-      .unwrap_or(443),
+      .unwrap_or(default_host_port),
     http_host_port: std::env::var("HTTP_PORT")
       .ok()
       .map(|host_port| {
@@ -31,9 +33,9 @@ pub fn load_env() -> Result<Config, ConfigError> {
           .map_err(|_| ConfigError::Parse("HTTP_PORT".to_string()))
       })
       .transpose()?
-      .unwrap_or(443),
+      .unwrap_or(default_host_port),
     public_host_name: std::env::var("PUBLIC_HOST")
-      .unwrap_or_else(|_| String::from("0.0.0.0")),
+      .unwrap_or_else(|_| default_host.clone()),
     public_host_port: std::env::var("PUBLIC_PORT")
       .ok()
       .map(|host_port| {
@@ -41,25 +43,13 @@ pub fn load_env() -> Result<Config, ConfigError> {
           .map_err(|_| ConfigError::Parse("PUBLIC_PORT".to_string()))
       })
       .transpose()?
-      .unwrap_or(443),
-    db_user: std::env::var("PG__USER")
-      .map_err(|_| ConfigError::Missing("PG__USER".to_string()))?,
-    db_pswd: std::env::var("PG__PASSWORD")
-      .map_err(|_| ConfigError::Missing("PG__PASSWORD".to_string()))?,
-    db_host: std::env::var("PG__HOST")
-      .map_err(|_| ConfigError::Missing("PG__HOST".to_string()))?,
-    db_port: {
-      let port = std::env::var("PG__PORT")
-        .map_err(|_| ConfigError::Missing("PG__PORT".to_string()))?;
-      usize::from_str(port.as_str())
-        .map_err(|_| ConfigError::Parse("PG__PORT".to_string()))?
-    },
-    db_database: if cfg!(test) {
-      std::env::var("PG__DBNAME")
-        .map_err(|_| ConfigError::Missing("PG__DBNAME".to_string()))?
+      .unwrap_or(default_host_port),
+    db_url: if cfg!(test) {
+      std::env::var("TEST_DATABASE_URL")
+        .map_err(|_| ConfigError::Missing("TEST_DATABASE_URL".to_string()))?
     } else {
-      std::env::var("PG__TEST_DBNAME")
-        .map_err(|_| ConfigError::Missing("PG__TEST_DBNAME".to_string()))?
+      std::env::var("DATABASE_URL")
+        .map_err(|_| ConfigError::Missing("DATABASE_URL".to_string()))?
     },
     session_secret: match std::env::var("SESSION_SECRET") {
       Ok(key) => Ok(Some(key)),
@@ -75,7 +65,7 @@ pub fn load_env() -> Result<Config, ConfigError> {
       .unwrap_or_else(|_| String::from("/")),
     #[cfg(feature = "proxy_default_service")]
     proxy_host: std::env::var("VITE_HOST")
-      .unwrap_or_else(|_| String::from("0.0.0.0")),
+      .unwrap_or_else(|_| default_host),
     #[cfg(feature = "proxy_default_service")]
     proxy_port: std::env::var("VITE_PORT")
       .ok()
