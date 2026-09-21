@@ -1,5 +1,5 @@
-use crate::config::Config;
 use super::config::ConfigError;
+use crate::config::Config;
 use crate::states::TrustedProxies;
 use std::str::FromStr;
 
@@ -16,8 +16,7 @@ pub fn load_env() -> Result<Config, ConfigError> {
   let default_host_port = 443;
 
   Ok(Config {
-    host_name: std::env::var("HOST")
-      .unwrap_or_else(|_| default_host.clone()),
+    host_name: std::env::var("HOST").unwrap_or_else(|_| default_host.clone()),
     host_port: std::env::var("PORT")
       .ok()
       .map(|host_port| {
@@ -64,8 +63,7 @@ pub fn load_env() -> Result<Config, ConfigError> {
     assets_path: std::env::var("VITE_BASE_PATH")
       .unwrap_or_else(|_| String::from("/")),
     #[cfg(feature = "proxy_default_service")]
-    proxy_host: std::env::var("VITE_HOST")
-      .unwrap_or_else(|_| default_host),
+    proxy_host: std::env::var("VITE_HOST").unwrap_or_else(|_| default_host),
     #[cfg(feature = "proxy_default_service")]
     proxy_port: std::env::var("VITE_PORT")
       .ok()
@@ -75,6 +73,15 @@ pub fn load_env() -> Result<Config, ConfigError> {
       })
       .transpose()?
       .unwrap_or(5173),
+    #[cfg(feature = "proxy_default_service")]
+    proxy_ws_port: std::env::var("VITE_WS_PORT")
+      .ok()
+      .map(|host_port| {
+        u16::from_str(host_port.as_str())
+          .map_err(|_| ConfigError::Parse("VITE_WS_PORT".to_string()))
+      })
+      .transpose()?
+      .unwrap_or(24678),
     trusted_proxies,
   })
 }

@@ -4,7 +4,7 @@ import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig(({ mode, isSsrBuild }) => {
-  const env = loadEnv(mode, '../', ['PUBLIC_']);
+  const env = loadEnv(mode, '../', ['VITE_', 'PUBLIC_']);
   return {
     plugins: [
       react(),
@@ -38,6 +38,7 @@ export default defineConfig(({ mode, isSsrBuild }) => {
     },
     server: {
       ws: {
+        port: Number(env.VITE_WS_PORT) || 24678,
         clientPort: Number(env.PUBLIC_PORT) || 443,
         path: "/__vite_hmr",
       },

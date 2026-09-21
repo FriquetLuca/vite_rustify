@@ -11,7 +11,7 @@ pub fn configure_hmr_proxy(cfg: &mut web::ServiceConfig) {
   let hmr_url = Url::parse(&format!(
     "ws://{}:{}/__vite_hmr",
     env_config().proxy_host,
-    24678
+    env_config().proxy_ws_port
   ))
   .expect("invalid HMR proxy target URL");
 
@@ -25,7 +25,19 @@ pub async fn ws_hmr_proxy(
   body: web::Payload,
   hmr_target: web::Data<HmrUrl>,
 ) -> Result<HttpResponse, Error> {
-  let (response, mut session, mut msg_stream) = actix_ws::handle(&req, body)?;
+  let (mut response, mut session, mut msg_stream) =
+    actix_ws::handle(&req, body)?;
+
+  if let Some(requested_protocol) = req
+    .headers()
+    .get(actix_web::http::header::SEC_WEBSOCKET_PROTOCOL)
+    .cloned()
+  {
+    response.headers_mut().insert(
+      actix_web::http::header::SEC_WEBSOCKET_PROTOCOL,
+      requested_protocol,
+    );
+  }
 
   let mut target_url = hmr_target.0.clone();
   target_url.set_query(req.uri().query());

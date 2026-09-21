@@ -15,6 +15,8 @@ pub(crate) struct Config {
   pub(crate) proxy_host: String,
   #[cfg(feature = "proxy_default_service")]
   pub(crate) proxy_port: u16,
+  #[cfg(feature = "proxy_default_service")]
+  pub(crate) proxy_ws_port: u16,
 }
 
 #[derive(Clone, Debug, thiserror::Error)]
