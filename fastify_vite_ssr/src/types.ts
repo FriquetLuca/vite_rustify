@@ -53,6 +53,7 @@ export interface ServerReply {
     url: string;
   };
   removeHeaders?: HttpHeader[];
+  statusCode?: number;
 }
 
 export interface i18nProps {

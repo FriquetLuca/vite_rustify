@@ -15,6 +15,19 @@ use actix_web::web::Data;
 use actix_web::HttpServer;
 use std::sync::Arc;
 
+fn format_url(
+  scheme: &str,
+  host: &str,
+  port: u16,
+  default_port: u16,
+) -> String {
+  if port == default_port {
+    format!("{scheme}://{host}/")
+  } else {
+    format!("{scheme}://{host}:{port}/")
+  }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
   let bloom_filters = Arc::new(std::sync::RwLock::new(BloomFtr::new()));
@@ -22,9 +35,19 @@ async fn main() -> std::io::Result<()> {
   env_logger::init();
 
   println!(
-    "Starting server on https://{}:{}/",
-    env_config().host_name,
-    env_config().host_port
+    "Starting server on:\n{}\n{}",
+    format_url(
+      "http",
+      &env_config().host_name,
+      env_config().http_host_port,
+      80
+    ),
+    format_url(
+      "https",
+      &env_config().host_name,
+      env_config().host_port,
+      443
+    )
   );
 
   let pool = create_db(None).await.unwrap();

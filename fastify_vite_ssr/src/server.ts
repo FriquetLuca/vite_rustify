@@ -76,26 +76,65 @@ const templateHtml = isProduction
   ? fs.readFileSync('./dist/client/index.html', 'utf-8')
   : '';
 
+function routeScore(path: string) {
+  return path
+    .split('/')
+    .filter(Boolean)
+    .reduce((score, segment) => {
+      if (segment === '*') return score - 1;
+      if (segment.startsWith(':')) return score + 10;
+      return score + 100;
+    }, 0);
+}
 const routeFiles = await (isProduction
-  ? fg('dist/pages/**/*.server.js')
-  : fg('src/pages/**/*.server.tsx'));
-const routes = routeFiles.map((file) => {
-  let name =
-    file.match(
-      isProduction
-        ? /^dist\/pages\/(.*)\.server\.js$/
-        : /^src\/pages\/(.*)\.server\.tsx$/
-    )?.[1] || '';
-  name = name
-    .replace(/\[([^\]]+)\]/g, ':$1')
-    .replace(/\/index$/, '')
-    .replace(/^index$/, '');
-  const routePath = `/${name}`;
-  return {
-    path: routePath,
-    filePath: path.resolve(file),
-  };
-});
+  ? fg('dist/pages/**/*.js')
+  : fg('src/pages/**/*.tsx'));
+const propsRoutes = routeFiles
+  .filter((file) => file.endsWith(isProduction ? '.server.js' : '.server.tsx'))
+  .map((file) => {
+    let name =
+      file.match(
+        isProduction
+          ? /^dist\/pages\/(.*)\.server\.js$/
+          : /^src\/pages\/(.*)\.server\.tsx$/
+      )?.[1] || '';
+    name = name
+      .replace(/\[([^\]]+)\]/g, ':$1')
+      .replace(/\/index$/, '')
+      .replace(/^index$/, '');
+    const routePath = `/${name}`;
+    return {
+      path: routePath,
+      filePath: path.resolve(file),
+    };
+  })
+  .sort((a, b) => {
+    const score = routeScore(b.path) - routeScore(a.path);
+    if (score !== 0) return score;
+    return b.path.split('/').length - a.path.split('/').length;
+  });
+const routes = routeFiles
+  .filter((file) => !file.endsWith(isProduction ? '.server.js' : '.server.tsx'))
+  .map((file) => {
+    let name =
+      file.match(
+        isProduction ? /^dist\/pages\/(.*)\.js$/ : /^src\/pages\/(.*)\.tsx$/
+      )?.[1] || '';
+    name = name
+      .replace(/\[([^\]]+)\]/g, ':$1')
+      .replace(/\/index$/, '')
+      .replace(/^index$/, '');
+    const routePath = `/${name}`;
+    return {
+      path: routePath,
+      filePath: path.resolve(file),
+    };
+  })
+  .sort((a, b) => {
+    const score = routeScore(b.path) - routeScore(a.path);
+    if (score !== 0) return score;
+    return b.path.split('/').length - a.path.split('/').length;
+  });
 
 const app = Fastify();
 await app.register(middie);
@@ -144,8 +183,8 @@ if (!isProduction) {
 }
 
 app.get('/__data/*', async (request, reply) => {
-  const routePath = request.url.replace('/__data', '');
-  const route = routes.find((r) => r.path === routePath);
+  const routePath = request.url.replace('/__data', '').split('?')[0];
+  const route = propsRoutes.find((r) => r.path === routePath);
 
   if (!route) {
     return {};
@@ -208,14 +247,19 @@ app.all('*', async (request, reply) => {
     const props = {} as InitialProps;
     let data: unknown = {};
 
-    let routePath = req.url ?? '/';
+    const pathname = request.url.split('?')[0];
+    let routePath = pathname;
+    let statusCode = 200;
     let title = TITLE;
-    let matchedStaticProps = false;
+    let matchedI18NStaticProps = false;
 
-    for (const route of routes) {
-      const match = matchPath({ path: route.path, end: true }, request.url);
+    for (const r of routes) {
+      const match = matchPath({ path: r.path, end: true }, pathname);
 
       if (!match) continue;
+
+      const route = propsRoutes.find((pr) => pr.path === r.path);
+      if (!route) break;
 
       routePath = route.path;
 
@@ -245,17 +289,19 @@ app.all('*', async (request, reply) => {
           );
         }
 
+        statusCode = result?.statusCode ?? statusCode;
+
         data = result?.data || data;
         title = result?.title ?? title;
         if (result?.i18nStore && result?.language) {
           props.initialI18nStore = result.i18nStore;
           props.initialLanguage = result.language;
-          matchedStaticProps = true;
+          matchedI18NStaticProps = true;
         }
       }
       break;
     }
-    if (!matchedStaticProps) {
+    if (!matchedI18NStaticProps) {
       const sst = serverSideTranslations({
         i18n: request.i18n,
         ns: ['translations'],
@@ -269,10 +315,10 @@ app.all('*', async (request, reply) => {
       {
         onShellError() {
           res.writeHead(500, { 'Content-Type': 'text/html' });
-          reply.send('<h1>Something went wrong</h1>');
+          reply.send('<h1>Error 500: Something went wrong</h1>');
         },
         onShellReady() {
-          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.writeHead(statusCode, { 'Content-Type': 'text/html' });
           const [htmlStart, htmlEnd] = template.split(`<!--app-html-->`);
           res.write(
             htmlStart
