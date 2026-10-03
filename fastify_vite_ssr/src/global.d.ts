@@ -6,5 +6,6 @@ declare global {
   interface Window {
     __INITIAL_PROPS__: InitialProps;
     __ROUTE_DATA__: RouteDataCache;
+    __SSR__?: boolean;
   }
 }

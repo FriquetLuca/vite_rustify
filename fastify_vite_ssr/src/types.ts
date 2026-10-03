@@ -11,21 +11,25 @@ import type { i18n } from 'i18next';
 export interface SSRCtx {
   id: string;
   ip: string;
-  ips?: string[] | undefined;
+  ips?: string[];
   host: string;
   port: number | null;
   hostname: string;
   headers: { [k: string]: string };
   body: unknown;
   query: unknown;
-  cookies: { [cookieName: string]: string | undefined };
+  cookies: {
+    [cookieName: string]: string | undefined;
+  };
   url: string;
   originalUrl: string;
   protocol: 'http' | 'https';
   method: string;
   params: unknown;
   routePath: Record<string, string | undefined>;
-  queryParams: { [k: string]: string };
+  queryParams: {
+    [k: string]: string;
+  };
   t: TFunction<'translation', undefined>;
   i18n: i18n;
   language: string;
@@ -41,11 +45,11 @@ export interface RouteData<T = unknown> {
   title?: string;
   data?: T;
 }
+
 export type RouteDataCache = Record<string, RouteData>;
 
-export type StaticProps<T = unknown> = Promise<
-  RouteData<T> & i18nProps & ServerReply
->;
+export type StaticProps<T = unknown> = RouteData<T> & i18nProps & ServerReply;
+export type GetStaticProps<T = unknown> = Promise<StaticProps<T>>;
 
 export interface ServerReply {
   redirect?: {
@@ -65,4 +69,12 @@ export interface InitialProps {
   initialI18nStore: Resource;
   initialLanguage: string;
   initialNS: string[];
+}
+
+export type RenderMode = 'ssr' | 'ssg' | 'csr';
+
+export type StaticParams = Record<string, string>;
+
+export interface StaticPageModule {
+  generateStaticParams?: () => StaticParams[] | Promise<StaticParams[]>;
 }

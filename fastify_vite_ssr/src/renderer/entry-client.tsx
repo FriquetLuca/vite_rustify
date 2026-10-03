@@ -1,26 +1,31 @@
-import { hydrateRoot } from 'react-dom/client';
-import App from '../App.js';
-import React, { Suspense } from 'react';
+import React from 'react';
+import { hydrateRoot, createRoot } from 'react-dom/client';
 import { useSSR } from 'react-i18next';
-import '../services/i18n.client';
-import Loading from '../components/Loading.js';
 import { BrowserRouter } from 'react-router';
+import App from '../App.js';
 
-// eslint-disable-next-line react-refresh/only-export-components
+import '../services/i18n.client';
+
 function Render() {
-  useSSR(
-    window.__INITIAL_PROPS__.initialI18nStore,
-    window.__INITIAL_PROPS__.initialLanguage
-  );
+  const initialProps = window.__INITIAL_PROPS__;
+
+  if (initialProps) {
+    useSSR(initialProps.initialI18nStore, initialProps.initialLanguage);
+  }
+
   return (
     <React.StrictMode>
       <BrowserRouter>
-        <Suspense fallback={<Loading />}>
-          <App />
-        </Suspense>
+        <App />
       </BrowserRouter>
     </React.StrictMode>
   );
 }
 
-hydrateRoot(document.getElementById('root')!, <Render />);
+const root = document.getElementById('root')!;
+
+if (window.__SSR__) {
+  hydrateRoot(root, <Render />);
+} else {
+  createRoot(root).render(<Render />);
+}

@@ -1,11 +1,14 @@
 import type { i18n, ResourceKey } from 'i18next';
+import { resolveLocale } from '../serve/locale.js';
 
 export function serverSideTranslations({
   i18n,
   ns,
+  host,
 }: {
   i18n: i18n;
   ns: string[];
+  host?: string;
 }) {
   if (i18n === null)
     return {
@@ -25,8 +28,9 @@ export function serverSideTranslations({
         i18n.services.resourceStore.data[language][namespace];
     });
   });
+  const locale = resolveLocale(host ?? '', i18n);
   return {
-    language: i18n.languages[0],
+    language: locale,
     namespaces: ns,
     i18nStore: initialI18nStore,
   };

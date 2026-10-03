@@ -1,8 +1,8 @@
-import { Routes, Route } from 'react-router';
+import { Routes, Route, useParams } from 'react-router';
 import { lazy, Suspense, useEffect, useState, type ComponentType } from 'react';
+import Loading from './Loading.js';
 import type { RouteData, StaticProps } from '../types';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PageComponent = ComponentType<any>;
 
 interface PageModule {
@@ -16,52 +16,84 @@ const pages = import.meta.glob(
   }
 ) as Record<string, () => Promise<PageModule>>;
 
-const routes = Object.keys(pages).map((path) => {
-  let name = path.match(/\/src\/pages\/(.*)\.tsx$/)?.[1] || '';
+type RenderMode = 'ssr' | 'ssg' | 'csr';
+
+interface RouteDefinition {
+  path: string;
+  mode: RenderMode;
+  component: PageComponent;
+}
+
+function getRouteMode(file: string): RenderMode {
+  if (file.endsWith('.ssg.tsx')) {
+    return 'ssg';
+  }
+  if (file.endsWith('.csr.tsx')) {
+    return 'csr';
+  }
+  return 'ssr';
+}
+
+function getRoutePath(file: string) {
+  let name = file.match(/\/src\/pages\/(.*)\.tsx$/)?.[1] || '';
   name = name
+    .replace(/\.(ssr|ssg|csr)$/, '')
     .replace(/\[([^\]]+)\]/g, ':$1')
     .replace(/\/index$/, '')
     .replace(/^index$/, '');
-  const routePath = `/${name}`;
-  return {
-    path: routePath,
-    component: lazy(pages[path]),
-  };
-});
+  return `/${name}`;
+}
+
+const routes: RouteDefinition[] = Object.keys(pages).map((file) => ({
+  path: getRoutePath(file),
+  mode: getRouteMode(file),
+  component: lazy(pages[file]),
+}));
 
 function RouteWrapper({
   component: Component,
   props,
   path,
+  mode,
 }: {
   component: PageComponent;
   props?: RouteData;
   path: string;
+  mode: RenderMode;
 }) {
+  const params = useParams();
   const [data, setData] = useState<RouteData | null>(() => {
     if (typeof window === 'undefined') {
-      return null;
+      return props ?? null;
     }
-    return window.__ROUTE_DATA__?.[path] ?? null;
+    return window.__ROUTE_DATA__?.[path] ?? props ?? null;
   });
   useEffect(() => {
-    const cached = window.__ROUTE_DATA__?.[path] as RouteData | null;
-
+    const cached = window.__ROUTE_DATA__?.[path];
     if (cached) {
-      document.title = cached?.title || document.title;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      document.title = cached.title || document.title;
       setData(cached);
       return;
     }
     fetch(`/__data${path}`)
-      .then((r) => r.json() as StaticProps)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load route data: ${response.status}`);
+        }
+        return response.json() as Promise<StaticProps>;
+      })
       .then((result) => {
+        window.__ROUTE_DATA__ ??= {};
         window.__ROUTE_DATA__[path] = result;
         document.title = result?.title || document.title;
         setData(result);
+      })
+      .catch((error) => {
+        console.error(`Failed to load data for ${path}`, error);
       });
-  }, [path]);
-  return <Component {...(data || props)} />;
+  }, [path, mode]);
+
+  return <Component {...(data || props)} params={params} />;
 }
 
 export default function Router({ props }: { props?: RouteData }) {
@@ -72,10 +104,11 @@ export default function Router({ props }: { props?: RouteData }) {
           key={route.path}
           path={route.path}
           element={
-            <Suspense fallback={<div>Loading...</div>}>
+            <Suspense fallback={<Loading />}>
               <RouteWrapper
                 component={route.component}
                 path={route.path}
+                mode={route.mode}
                 props={props}
               />
             </Suspense>
