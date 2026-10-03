@@ -143,7 +143,6 @@ app.get('/__data/*', async (request, reply) => {
 app.all('*', async (request, reply) => {
   try {
     const pathname = request.url.split('?')[0];
-
     if (isProduction) {
       const locale = resolveLocale(request.headers.host ?? '', request.i18n);
       const reqURL = pathname === '/' ? '/index' : pathname;
