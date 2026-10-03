@@ -13,7 +13,7 @@
   "homepage": "https://github.com/TEMPLATE_OWNER/TEMPLATE_NAME#readme",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "npm run clean && npm run build:client && npm run build:ssr && npm run build:server && npm run build:ssg",
+    "build": "npm run clean && npm run build:client && npm run build:ssr && npm run build:ssg && npm run build:server",
     "build:client": "vite build --mode production --outDir dist/client --ssrManifest",
     "build:ssr": "vite build --mode production --ssr src/renderer/entry-server.tsx --outDir dist/server",
     "build:server": "tsc -p tsconfig.node.json",

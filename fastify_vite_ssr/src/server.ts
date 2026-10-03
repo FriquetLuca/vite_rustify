@@ -149,7 +149,7 @@ app.all('*', async (request, reply) => {
       const reqURL = pathname === '/' ? '/index' : pathname;
       const staticLocation = path.join(
         __dirname,
-        `client/${locale}${reqURL}.html`
+        `.ssg/${locale}${reqURL}.html`
       );
       if (fs.existsSync(staticLocation)) {
         const html = fs.readFileSync(staticLocation, 'utf8');

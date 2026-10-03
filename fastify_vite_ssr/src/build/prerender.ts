@@ -19,8 +19,10 @@ dotenv.config({
 
 const TITLE = process.env.VITE_APP_NAME ?? 'Fastify Vite';
 const RAW_DIST_CLIENT = 'dist/client/';
+const RAW_DIST_SSG = 'dist/.ssg/';
 const RAW_DIST_SERVER = 'dist/server/';
 const DIST_CLIENT = path.resolve(RAW_DIST_CLIENT);
+const DIST_SSG = path.resolve(RAW_DIST_SSG);
 const DIST_SERVER = path.resolve(RAW_DIST_SERVER);
 
 const colors = {
@@ -92,10 +94,10 @@ function renderToString(element: React.ReactElement) {
 
 function outputPath(routePath: string, locale: string) {
   if (routePath === '/') {
-    return path.join(DIST_CLIENT, locale, 'index.html');
+    return path.join(DIST_SSG, locale, 'index.html');
   }
   return path.join(
-    DIST_CLIENT,
+    DIST_SSG,
     locale,
     `${routePath.replace(/^\/+/, '')}.html`
   );
@@ -276,7 +278,7 @@ async function main() {
         const gzipSize = gzipSync(html).byteLength;
         moduleMessages.push({
           type: 'gen',
-          location: path.relative(DIST_CLIENT, output),
+          location: path.relative(DIST_SSG, output),
           size,
           gzipSize,
         });
@@ -315,7 +317,7 @@ async function main() {
         const gzipSize = gzipSync(html).byteLength;
         moduleMessages.push({
           type: 'gen',
-          location: path.relative(DIST_CLIENT, output),
+          location: path.relative(DIST_SSG, output),
           size,
           gzipSize,
         });
@@ -344,7 +346,7 @@ async function main() {
       (prev, curr) =>
         curr.type !== 'error' ? Math.max(curr.location.length, prev) : prev,
       0
-    ) + RAW_DIST_CLIENT.length;
+    ) + RAW_DIST_SSG.length;
   const offset = genLen + Math.min(5, 10 - (genLen % 10));
   const errCount = moduleMessages.reduce(
     (prev, curr) => (curr.type === 'error' ? prev + 1 : prev),
@@ -363,7 +365,7 @@ async function main() {
       console.log(modMsg.message);
     } else {
       console.log(
-        `${colors.gray}${RAW_DIST_CLIENT}${colors.reset}` +
+        `${colors.gray}${RAW_DIST_SSG}${colors.reset}` +
           `${colors.green}${modMsg.location.padEnd(offset)}${colors.reset} ` +
           `${colors.gray}${colors.bold}${formatBytes(modMsg.size)}${colors.reset} ${colors.gray}│ gzip: ${formatBytes(modMsg.gzipSize)}${colors.reset}`
       );
