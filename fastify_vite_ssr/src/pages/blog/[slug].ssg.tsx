@@ -1,3 +1,5 @@
+import { useParams } from 'react-router';
+
 type Post = { slug?: string; slag?: string; title: string; content: string };
 const posts: Post[] = [
   { slug: 'hello-world', title: 'Hello World', content: 'Welcome to my blog!' },
@@ -15,8 +17,9 @@ const posts: Post[] = [
 export async function generateStaticParams() {
   return posts.map((post) => ({ slug: post.slug }));
 }
-type BlogPostProps = { params: { slug: string } };
-export default function BlogPost({ params }: BlogPostProps) {
+type BlogPostProps = { slug: string };
+export default function BlogPost() {
+  const params = useParams<BlogPostProps>();
   const post = posts.find((post) => post.slug === params.slug);
   if (!post) {
     return <h1>Post not found</h1>;

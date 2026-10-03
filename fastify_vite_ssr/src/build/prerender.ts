@@ -96,11 +96,7 @@ function outputPath(routePath: string, locale: string) {
   if (routePath === '/') {
     return path.join(DIST_SSG, locale, 'index.html');
   }
-  return path.join(
-    DIST_SSG,
-    locale,
-    `${routePath.replace(/^\/+/, '')}.html`
-  );
+  return path.join(DIST_SSG, locale, `${routePath.replace(/^\/+/, '')}.html`);
 }
 
 function resolveRoutePath(routePath: string, params: Record<string, string>) {
