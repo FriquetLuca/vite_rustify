@@ -1,31 +1,48 @@
+import '../index.css';
 import React from 'react';
 import { hydrateRoot, createRoot } from 'react-dom/client';
 import { useSSR } from 'react-i18next';
-import { BrowserRouter } from 'react-router';
-import App from '../App.js';
+import { createBrowserRouter, matchRoutes, RouterProvider } from 'react-router';
+import '../services/i18n.client.js';
+import { createRoutes } from '../router/routes.js';
 
-import '../services/i18n.client';
-
-function Render() {
+function Render({
+  router,
+}: {
+  router: ReturnType<typeof createBrowserRouter>;
+}) {
   const initialProps = window.__INITIAL_PROPS__;
-
   if (initialProps) {
     useSSR(initialProps.initialI18nStore, initialProps.initialLanguage);
   }
-
   return (
     <React.StrictMode>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <RouterProvider router={router} />
     </React.StrictMode>
   );
 }
 
-const root = document.getElementById('root')!;
-
-if (window.__SSR__) {
-  hydrateRoot(root, <Render />);
-} else {
-  createRoot(root).render(<Render />);
+async function hydrate() {
+  const routes = createRoutes();
+  const lazyMatches = matchRoutes(routes, window.location)?.filter(
+    (m) => m.route.lazy
+  );
+  if (lazyMatches && lazyMatches?.length > 0) {
+    await Promise.all(
+      lazyMatches.map(async (m) => {
+        let lazy = m.route.lazy as () => Promise<Record<string, unknown>>;
+        let routeModule = await lazy();
+        Object.assign(m.route, { ...routeModule, lazy: undefined });
+      })
+    );
+  }
+  const router = createBrowserRouter(routes);
+  const root = document.getElementById('root')!;
+  if (window.__SSR__) {
+    hydrateRoot(root, <Render router={router} />);
+  } else {
+    createRoot(root).render(<Render router={router} />);
+  }
 }
+
+hydrate();

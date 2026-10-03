@@ -26,6 +26,7 @@
   "include": [
     "src/server.ts",
     "src/serve/**/*.ts",
-    "src/pages/**/*.tsx"
+    "src/pages/**/*.tsx",
+    "src/**/*.d.ts"
   ]
 }

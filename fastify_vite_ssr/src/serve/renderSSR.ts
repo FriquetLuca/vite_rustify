@@ -68,7 +68,8 @@ export async function renderSSR({
     title: result.title,
   };
   const element = await render({
-    req: request.raw,
+    req: request,
+    res: reply,
     i18n: request.i18n,
     props: routeData,
   });
