@@ -241,7 +241,7 @@ async function main() {
     return;
   }
   console.log(
-    `\n${colors.blue}SSG${colors.reset} ${colors.green}building ssg for production...${colors.reset}`
+    `\n${colors.blue}SSG v1.0.0${colors.reset} ${colors.green}building ssg for production...${colors.reset}`
   );
   const moduleMessages: ModuleMessage[] = [];
   const startTime = Date.now();

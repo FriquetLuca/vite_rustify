@@ -2,6 +2,7 @@ import type { RouteObject } from 'react-router';
 import { ServerPropsProvider } from './ServerPropsProvider.js';
 import type { RouteData } from '../types';
 import type { JSX } from 'react';
+import routeMetadata from 'virtual:route-metadata';
 
 type PageModule = {
   default: () => JSX.Element;
@@ -23,6 +24,12 @@ const pages = import.meta.glob(
     eager: false,
   }
 ) as Record<string, () => Promise<PageModule>>;
+
+for (const [filePath, _] of Object.entries(pages)) {
+  const metadata = routeMetadata[filePath];
+  //console.log(`${filePath} > ${metadata?.isChild ?? false}`);
+  //console.log(metadata);
+}
 
 function getRoutePath(file: string) {
   let name = file.match(/\/src\/pages\/(.*)\.tsx$/)?.[1] || '';
