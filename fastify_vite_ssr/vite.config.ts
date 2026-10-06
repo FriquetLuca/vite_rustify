@@ -2,22 +2,21 @@ import { defineConfig, loadEnv } from 'vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
-import virtualMetadataPlugin from './src/build/virtualMetadataPlugin.js';
+import routerPlugin from './src/build/routerPlugin.js';
 
 export default defineConfig(({ mode, isSsrBuild }) => {
   const env = loadEnv(mode, '../', ['VITE_', 'PUBLIC_']);
   return {
     plugins: [
       react(),
-      virtualMetadataPlugin({
-        moduleId: 'route-metadata',
-        allowProperties: ['isChild'],
+      routerPlugin({
         include: [
           '/src/pages/**/*.tsx',
         ],
         exclude: [
           '/src/pages/**/*.server.tsx',
         ],
+        allowProperties: ["mode", "isChild"],
       }),
       babel({
         presets: [reactCompilerPreset()]
@@ -30,7 +29,8 @@ export default defineConfig(({ mode, isSsrBuild }) => {
     envDir: '../',
     build: {
       copyPublicDir: !isSsrBuild,
-      rollupOptions: {
+      rolldownOptions: {
+        treeshake: true,
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {

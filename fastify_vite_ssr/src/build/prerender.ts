@@ -12,6 +12,7 @@ import { serverSideTranslations } from '../utils/serverSideTranslations.js';
 import { i18nOptions, languages } from '../services/i18n.shared.js';
 import type { InitialProps, RouteData, StaticParams } from '../types';
 import dotenv from 'dotenv';
+import { resolveRoutePath, getRouteParams } from '../serve/resolveRoutePath.js';
 
 dotenv.config({
   path: path.resolve(process.cwd(), '../.env'),
@@ -20,7 +21,7 @@ dotenv.config({
 const TITLE = process.env.VITE_APP_NAME ?? 'Fastify Vite';
 const RAW_DIST_CLIENT = 'dist/client/';
 const RAW_DIST_SSG = 'dist/.ssg/';
-const RAW_DIST_SERVER = 'dist/server/';
+const RAW_DIST_SERVER = 'dist/renderer/';
 const DIST_CLIENT = path.resolve(RAW_DIST_CLIENT);
 const DIST_SSG = path.resolve(RAW_DIST_SSG);
 const DIST_SERVER = path.resolve(RAW_DIST_SERVER);
@@ -97,26 +98,6 @@ function outputPath(routePath: string, locale: string) {
     return path.join(DIST_SSG, locale, 'index.html');
   }
   return path.join(DIST_SSG, locale, `${routePath.replace(/^\/+/, '')}.html`);
-}
-
-function resolveRoutePath(routePath: string, params: Record<string, string>) {
-  try {
-    return routePath.replace(/:([^/]+)/g, (_, name) => {
-      const value = params[name];
-      if (value === undefined) {
-        throw new Error(
-          `${colors.red}/!\\${colors.reset} Missing static parameter ${colors.red}${name}${colors.reset} for ${colors.gray}${routePath}${colors.reset}`
-        );
-      }
-      return encodeURIComponent(value);
-    });
-  } catch (e) {
-    return { error: (e as Error).message };
-  }
-}
-
-function getRouteParams(routePath: string): string[] {
-  return [...routePath.matchAll(/:([^/]+)/g)].map((match) => match[1]);
 }
 
 async function renderRoute({

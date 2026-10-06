@@ -1,5 +1,5 @@
 import path from 'node:path';
-import fg from 'fast-glob';
+import { glob } from 'tinyglobby';
 
 import type { RenderMode } from '../types';
 
@@ -51,8 +51,12 @@ function getMode(file: string): RenderMode {
 }
 
 export async function discoverRoutes(): Promise<RouteDefinition[]> {
-  const files = await fg(
-    isProduction ? 'dist/pages/**/*.js' : 'src/pages/**/*.tsx'
+  const files = await glob(
+    isProduction ? 'dist/pages/**/*.js' : 'src/pages/**/*.tsx',
+    {
+      onlyFiles: true,
+      dot: false,
+    }
   );
   const pageFiles = files.filter(
     (file) => !file.endsWith(isProduction ? '.server.js' : '.server.tsx')

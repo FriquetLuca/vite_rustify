@@ -1,62 +1,21 @@
 import type { RouteObject } from 'react-router';
 import { ServerPropsProvider } from './ServerPropsProvider.js';
 import type { RouteData } from '../types';
-import type { JSX } from 'react';
-import routeMetadata from 'virtual:route-metadata';
-
-type PageModule = {
-  default: () => JSX.Element;
-} & Omit<
-  RouteObject,
-  | 'lazy'
-  | 'caseSensitive'
-  | 'path'
-  | 'id'
-  | 'index'
-  | 'children'
-  | 'unstable_validateParams'
-  | 'middleware'
->;
-
-const pages = import.meta.glob(
-  ['/src/pages/**/*.tsx', '!/src/pages/**/*.server.tsx'],
-  {
-    eager: false,
-  }
-) as Record<string, () => Promise<PageModule>>;
-
-for (const [filePath, _] of Object.entries(pages)) {
-  const metadata = routeMetadata[filePath];
-  //console.log(`${filePath} > ${metadata?.isChild ?? false}`);
-  //console.log(metadata);
-}
-
-function getRoutePath(file: string) {
-  let name = file.match(/\/src\/pages\/(.*)\.tsx$/)?.[1] || '';
-  name = name
-    .replace(/\.(ssr|ssg|csr)$/, '')
-    .replace(/\[([^\]]+)\]/g, ':$1')
-    .replace(/\/index$/, '')
-    .replace(/^index$/, '');
-  return `/${name}`;
-}
-
+import frameworkRouter from 'virtual:framework-router';
+console.log(frameworkRouter);
 export function createRoutes(ssp?: RouteData): RouteObject[] {
-  return Object.keys(pages).map((file) => {
-    const path = getRoutePath(file);
-    return {
-      path,
-      lazy: async () => {
-        const { default: Component, ...props } = await pages[file]();
-        return {
-          ...props,
-          element: (
-            <ServerPropsProvider path={path} props={ssp}>
-              <Component />
-            </ServerPropsProvider>
-          ),
-        };
-      },
-    };
-  });
+  return frameworkRouter.map(({ path, load }) => ({
+    path,
+    lazy: async () => {
+      const { default: Component, ...props } = await load();
+      return {
+        ...props,
+        element: (
+          <ServerPropsProvider path={path} props={ssp}>
+            <Component />
+          </ServerPropsProvider>
+        ),
+      };
+    },
+  }));
 }

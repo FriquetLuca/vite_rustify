@@ -1,4 +1,3 @@
-import '../index.css';
 import React from 'react';
 import { I18nextProvider } from 'react-i18next';
 import {
@@ -6,6 +5,7 @@ import {
   createStaticRouter,
   StaticRouterProvider,
 } from 'react-router';
+import Main from '../main.js';
 
 import type { RouteData } from '../types';
 import type { i18n } from 'i18next';
@@ -39,11 +39,13 @@ export async function render({
   return (
     <React.StrictMode>
       <I18nextProvider i18n={i18n}>
-        <StaticRouterProvider
-          router={router}
-          context={context}
-          nonce="the-nonce"
-        />
+        <Main>
+          <StaticRouterProvider
+            router={router}
+            context={context}
+            nonce="the-nonce"
+          />
+        </Main>
       </I18nextProvider>
     </React.StrictMode>
   );

@@ -197,8 +197,7 @@ app.all('*', async (request, reply) => {
         .render;
     } else {
       template = fs.readFileSync(FS_CLIENT, 'utf8');
-      // @ts-expect-error - built file exists only in production
-      render = (await import('./server/entry-server.js')).render;
+      render = (await import('./renderer/entry-server.js')).render;
     }
 
     return renderSSR({
@@ -211,6 +210,16 @@ app.all('*', async (request, reply) => {
   } catch (error) {
     if (vite) {
       vite.ssrFixStacktrace(error as Error);
+    }
+    if (error instanceof Response && error.status >= 300 && error.status <= 399) {
+      const location = error.headers.get('Location');
+      error.headers.forEach((value, key) => {
+        reply.header(key, value);
+      });
+      if (!location) {
+        return reply.code(error.status).send();
+      }
+      return reply.redirect(location, error.status);
     }
     console.error(error);
     if (!reply.sent) {

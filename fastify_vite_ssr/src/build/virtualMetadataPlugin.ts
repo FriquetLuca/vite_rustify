@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
 import type { Plugin, ResolvedConfig } from 'vite';
-import { createFilter, type FilterPattern } from '@rollup/pluginutils';
+import { createFilter, type FilterPattern } from './createFilter.js';
 
 export interface VirtualMetadataPluginOptions {
   /**
