@@ -1,15 +1,15 @@
 const SCORE = {
   static: 10,
-  dynamic: 3,         // :id
+  dynamic: 3, // :id
   partialDynamic: 3.5, // :id-suffix style segments
-  empty: 1,           // leading/trailing "/"
+  empty: 1, // leading/trailing "/"
   index: 2,
   splatPenalty: -2,
 } as const;
 
 const paramRe = /^:[\w-]+$/;
 const partialParamRe = /^:[\w-]+/;
-const isSplat = (s: string) => s === "*";
+const isSplat = (s: string) => s === '*';
 
 export interface PathInfo {
   path: string;
@@ -19,7 +19,7 @@ export interface PathInfo {
 }
 
 function scorePath({ path, index }: PathInfo): number {
-  const segments = path.split("/");
+  const segments = path.split('/');
   let score = segments.length;
 
   if (segments.some(isSplat)) score += SCORE.splatPenalty;
@@ -30,7 +30,7 @@ function scorePath({ path, index }: PathInfo): number {
     .reduce((total, segment) => {
       if (paramRe.test(segment)) return total + SCORE.dynamic;
       if (partialParamRe.test(segment)) return total + SCORE.partialDynamic;
-      if (segment === "") return total + SCORE.empty;
+      if (segment === '') return total + SCORE.empty;
       return total + SCORE.static;
     }, score);
 }

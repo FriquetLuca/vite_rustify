@@ -1,7 +1,9 @@
 import path from 'node:path';
 import { glob } from 'tinyglobby';
-
 import type { RenderMode } from '../types';
+import { getRoutePath } from './getRoutePath.js';
+import { normalizeRoutePath } from './normalizeRoutePath.js';
+import { compareRoutes } from './compareRoutes.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -12,43 +14,18 @@ export interface RouteDefinition {
   serverFilePath?: string;
 }
 
-function routeScore(routePath: string) {
-  return routePath
-    .split('/')
-    .filter(Boolean)
-    .reduce((score, segment) => {
-      if (segment === '*') {
-        return score - 1;
-      }
-      if (segment.startsWith(':')) {
-        return score + 10;
-      }
-      return score + 100;
-    }, 0);
-}
-
-function fileToRoutePath(file: string) {
-  let name = file
-    .replace(isProduction ? /^dist\/pages\// : /^src\/pages\//, '')
-    .replace(isProduction ? /\.js$/ : /\.tsx$/, '');
-  name = name
-    .replace(/\.(ssr|ssg|csr)$/, '')
-    .replace(/\[([^\]]+)\]/g, ':$1')
-    .replace(/\/index$/, '')
-    .replace(/^index$/, '');
-
-  return `/${name}`;
-}
-
 function getMode(file: string): RenderMode {
-  if (file.endsWith(isProduction ? '.ssg.js' : '.ssg.tsx')) {
+  if (file.match(/\.ssg\.(tsx|ts|jsx|js)$/)) {
     return 'ssg';
   }
-  if (file.endsWith(isProduction ? '.csr.js' : '.csr.tsx')) {
+  if (file.match(/\.csr\.(tsx|ts|jsx|js)$/)) {
     return 'csr';
   }
   return 'ssr';
 }
+
+const ROUTE_FILE_REGEX = /\.(ssr|ssg|csr)\.(tsx|ts|jsx|js)$/;
+const SERVER_FILE_REGEX = /\.server\.(tsx|ts|jsx|js)$/;
 
 export async function discoverRoutes(): Promise<RouteDefinition[]> {
   const files = await glob(
@@ -58,37 +35,25 @@ export async function discoverRoutes(): Promise<RouteDefinition[]> {
       dot: false,
     }
   );
-  const pageFiles = files.filter(
-    (file) => !file.endsWith(isProduction ? '.server.js' : '.server.tsx')
-  );
+  const pageFiles = files.filter((file) => !file.match(SERVER_FILE_REGEX));
   const serverFiles = new Map(
     files
-      .filter((file) =>
-        file.endsWith(isProduction ? '.server.js' : '.server.tsx')
-      )
-      .map((file) => [
-        file.replace(isProduction ? /\.server\.js$/ : /\.server\.tsx$/, ''),
-        path.resolve(file),
-      ])
+      .filter((file) => file.match(SERVER_FILE_REGEX))
+      .map((file) => [file.replace(SERVER_FILE_REGEX, ''), path.resolve(file)])
   );
   const routes = pageFiles.map((file) => {
-    const pageKey = file.replace(
-      isProduction ? /\.(ssr|ssg|csr)\.js$/ : /\.(ssr|ssg|csr)\.tsx$/,
-      ''
-    );
+    const pageKey = file.replace(ROUTE_FILE_REGEX, '');
     return {
-      path: fileToRoutePath(file),
+      path: normalizeRoutePath(
+        getRoutePath(isProduction ? 'dist/pages' : 'src/pages', file)
+      ),
       filePath: path.resolve(file),
       mode: getMode(file),
       serverFilePath: serverFiles.get(pageKey),
     };
   });
 
-  return routes.sort((a, b) => {
-    const score = routeScore(b.path) - routeScore(a.path);
-    if (score !== 0) {
-      return score;
-    }
-    return b.path.split('/').length - a.path.split('/').length;
-  });
+  return routes.sort((a, b) =>
+    compareRoutes({ path: a.path }, { path: b.path })
+  );
 }

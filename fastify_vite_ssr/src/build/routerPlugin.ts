@@ -260,8 +260,6 @@ export default function routerPlugin(
     return 'ssr';
   }
 
-  
-
   function getModulePath(file: string): string {
     const relative = path.relative(config.root, file);
 
@@ -329,5 +327,3 @@ function normalizeGlobPattern(pattern: string): string {
 
   return pattern;
 }
-
-

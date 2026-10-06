@@ -1,10 +1,10 @@
+import '../index.css';
 import React from 'react';
 import { hydrateRoot, createRoot } from 'react-dom/client';
 import { useSSR } from 'react-i18next';
 import { createBrowserRouter, matchRoutes, RouterProvider } from 'react-router';
 import '../services/i18n.client.js';
 import { createRoutes } from '../router/routes.js';
-import Main from '../main.js';
 
 function Render({
   router,
@@ -17,9 +17,7 @@ function Render({
   }
   return (
     <React.StrictMode>
-      <Main>
-        <RouterProvider router={router} />
-      </Main>
+      <RouterProvider router={router} />
     </React.StrictMode>
   );
 }

@@ -30,18 +30,22 @@ export function resolveRoutePath(
 ): string | { error: string } {
   const errors: string[] = [];
 
-  let resolved = routePath.replace(PARAM_RE, (_, name: string, opt?: string) => {
-    const value = params[name];
-    if (isEmpty(value)) {
-      if (!opt) errors.push(`Missing static parameter "${name}" for ${routePath}`);
-      return ''; // an omitted optional param drops its whole segment
+  let resolved = routePath.replace(
+    PARAM_RE,
+    (_, name: string, opt?: string) => {
+      const value = params[name];
+      if (isEmpty(value)) {
+        if (!opt)
+          errors.push(`Missing static parameter "${name}" for ${routePath}`);
+        return ''; // an omitted optional param drops its whole segment
+      }
+      if (typeof value !== 'string') {
+        errors.push(`Parameter "${name}" must be a string for ${routePath}`);
+        return '';
+      }
+      return '/' + encodeURIComponent(value);
     }
-    if (typeof value !== 'string') {
-      errors.push(`Parameter "${name}" must be a string for ${routePath}`);
-      return '';
-    }
-    return '/' + encodeURIComponent(value);
-  });
+  );
 
   // Splat: params['*'] as a string ("a/b") or an array (["a", "b"])
   resolved = resolved.replace(SPLAT_RE, (_, lead: string) => {

@@ -2,11 +2,7 @@ import { isAbsolute, posix, resolve } from 'node:path';
 import picomatch from 'picomatch';
 
 export type FilterPattern =
-  | ReadonlyArray<string | RegExp>
-  | string
-  | RegExp
-  | null
-  | undefined;
+  ReadonlyArray<string | RegExp> | string | RegExp | null | undefined;
 
 export interface CreateFilterOptions {
   /** Base directory for relative globs. `false` disables resolving. Defaults to process.cwd(). */
@@ -15,24 +11,35 @@ export interface CreateFilterOptions {
 
 const normalizePath = (p: string) => p.replace(/\\/g, '/');
 
-const ensureArray = <T>(thing: T | readonly T[] | null | undefined): readonly T[] => {
+const ensureArray = <T>(
+  thing: T | readonly T[] | null | undefined
+): readonly T[] => {
   if (Array.isArray(thing)) return thing;
   if (thing == null) return [];
   return [thing as T];
 };
 
-function getMatcherString(glob: string, base: string | false | null | undefined): string {
+function getMatcherString(
+  glob: string,
+  base: string | false | null | undefined
+): string {
   if (base === false || isAbsolute(glob) || glob.startsWith('**')) {
     return normalizePath(glob);
   }
   // Escape the base so characters in the path aren't read as glob syntax
-  const basePath = normalizePath(resolve(base || '')).replace(/[-^$*+?.()|[\]{}]/g, '\\$&');
+  const basePath = normalizePath(resolve(base || '')).replace(
+    /[-^$*+?.()|[\]{}]/g,
+    '\\$&'
+  );
   return posix.join(basePath, normalizePath(glob));
 }
 
 type Matcher = (id: string) => boolean;
 
-function toMatcher(pattern: string | RegExp, base: CreateFilterOptions['resolve']): Matcher {
+function toMatcher(
+  pattern: string | RegExp,
+  base: CreateFilterOptions['resolve']
+): Matcher {
   if (pattern instanceof RegExp) {
     return (id) => {
       pattern.lastIndex = 0; // g/y flags make test() stateful
@@ -45,7 +52,7 @@ function toMatcher(pattern: string | RegExp, base: CreateFilterOptions['resolve'
 export function createFilter(
   include?: FilterPattern,
   exclude?: FilterPattern,
-  options?: CreateFilterOptions,
+  options?: CreateFilterOptions
 ): (id: string | unknown) => boolean {
   const base = options?.resolve;
   const includeMatchers = ensureArray(include).map((p) => toMatcher(p, base));

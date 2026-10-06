@@ -1,30 +1,22 @@
+import { Agent, fetch, Response } from 'undici';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { pathToFileURL } from 'node:url';
-import { PassThrough } from 'node:stream';
-import { renderToPipeableStream } from 'react-dom/server';
-import i18next from 'i18next';
-import i18nextBackend from 'i18next-fs-backend';
 import { discoverRoutes } from '../serve/routes.js';
-import { loadRouteData } from '../serve/loadRouteData.js';
-import { serverSideTranslations } from '../utils/serverSideTranslations.js';
-import { i18nOptions, languages } from '../services/i18n.shared.js';
-import type { InitialProps, RouteData, StaticParams } from '../types';
-import dotenv from 'dotenv';
+import { languages } from '../services/i18n.shared.js';
+import type { StaticParams } from '../types';
 import { resolveRoutePath, getRouteParams } from '../serve/resolveRoutePath.js';
+import type ServerFN from '../server.js';
 
-dotenv.config({
-  path: path.resolve(process.cwd(), '../.env'),
+const ssgDispatcher = new Agent({
+  connect: {
+    rejectUnauthorized: false,
+  },
 });
-
-const TITLE = process.env.VITE_APP_NAME ?? 'Fastify Vite';
-const RAW_DIST_CLIENT = 'dist/client/';
 const RAW_DIST_SSG = 'dist/.ssg/';
-const RAW_DIST_SERVER = 'dist/renderer/';
-const DIST_CLIENT = path.resolve(RAW_DIST_CLIENT);
 const DIST_SSG = path.resolve(RAW_DIST_SSG);
-const DIST_SERVER = path.resolve(RAW_DIST_SERVER);
+const DIST_SERVER = path.resolve('dist/server.js');
 
 const colors = {
   reset: '\x1b[0m',
@@ -40,21 +32,6 @@ const colors = {
   underline: '\x1b[4m',
 };
 
-async function createI18n(locale: string) {
-  const instance = i18next.createInstance();
-  await instance.use(i18nextBackend).init({
-    ...i18nOptions,
-    initAsync: false,
-    preload: languages,
-    lng: locale,
-    backend: {
-      loadPath: 'dist/client/locales/{{ns}}/{{lng}}.json',
-    },
-  });
-
-  return instance;
-}
-
 function formatBytes(bytes: number) {
   const kb = bytes / 1024;
   if (kb < 1024) {
@@ -63,146 +40,13 @@ function formatBytes(bytes: number) {
   return `${(kb / 1024).toFixed(2)} MB`;
 }
 
-function renderToString(element: React.ReactElement) {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    const output = new PassThrough();
-    output.on('data', (chunk) => {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    });
-    output.on('end', () => {
-      resolve(Buffer.concat(chunks).toString('utf8'));
-    });
-    output.on('error', reject);
-    let didError = false;
-    const { pipe } = renderToPipeableStream(element, {
-      onAllReady() {
-        if (!didError) {
-          pipe(output);
-        }
-      },
-      onShellError(error) {
-        reject(error);
-      },
-      onError(error) {
-        didError = true;
-        console.error('SSG render error:', error);
-        reject(error);
-      },
-    });
-  });
-}
-
 function outputPath(routePath: string, locale: string) {
   if (routePath === '/') {
     return path.join(DIST_SSG, locale, 'index.html');
   }
   return path.join(DIST_SSG, locale, `${routePath.replace(/^\/+/, '')}.html`);
 }
-
-async function renderRoute({
-  route,
-  routePath,
-  render,
-  template,
-  i18n,
-}: {
-  route: Awaited<ReturnType<typeof discoverRoutes>>[number];
-  routePath: string;
-  render: Function;
-  template: string;
-  i18n: any;
-}) {
-  const fakeRequest: any = {
-    raw: {
-      url: routePath,
-      headers: {
-        host: 'localhost',
-      },
-    },
-    url: routePath,
-    i18n,
-    cookies: {},
-    headers: {},
-    method: 'GET',
-    setCookie: () => {},
-  };
-  const fakeReply: any = {
-    setCookie: () => fakeReply,
-    removeHeader: () => {},
-  };
-  const match = (await import('react-router')).matchPath(
-    {
-      path: route.path,
-      end: true,
-    },
-    routePath
-  );
-  if (!match) {
-    throw new Error(`Could not match ${routePath} against ${route.path}`);
-  }
-  const result = await loadRouteData({
-    route,
-    request: fakeRequest,
-    reply: fakeReply,
-    params: match.params,
-  });
-
-  if (result.redirect) {
-    throw new Error(
-      `SSG route ${routePath} attempted to redirect to ${result.redirect.url}. ` +
-        `Static redirects should be handled separately.`
-    );
-  }
-
-  const initialProps = {} as InitialProps;
-  if (result.i18nStore && result.language) {
-    initialProps.initialI18nStore = result.i18nStore as any;
-    initialProps.initialLanguage = result.language;
-    initialProps.initialNS = ['translations'];
-  } else {
-    const sst = serverSideTranslations({
-      i18n,
-      ns: ['translations'],
-    });
-    initialProps.initialI18nStore = sst.i18nStore;
-    initialProps.initialLanguage = sst.language;
-    initialProps.initialNS = ['translations'];
-  }
-
-  const routeData: RouteData = {
-    data: result.data,
-    title: result.title,
-  };
-  const element = await render({
-    req: {
-      url: routePath,
-    },
-    i18n,
-    props: routeData,
-  });
-  const html = await renderToString(element);
-  const [htmlStart, htmlEnd] = template.split('<!--app-html-->');
-
-  const script =
-    `<script>` +
-    `window.__SSR__=true;` +
-    `window.__INITIAL_PROPS__=${JSON.stringify(initialProps)};` +
-    `window.__ROUTE_DATA__=${JSON.stringify({
-      [route.path]: routeData,
-    })};` +
-    `</script>`;
-
-  return (
-    htmlStart
-      .replace('<!--app-title-->', result.title ?? TITLE)
-      .replace('<!--app-static-props-->', '') +
-    html +
-    script +
-    htmlEnd
-  );
-}
-
+type PageModule = { generateStaticParams?: () => Promise<StaticParams[]> };
 type ModuleMessage =
   | {
       type: 'gen';
@@ -216,36 +60,94 @@ type ModuleMessage =
     };
 
 async function main() {
+  const {
+    default: Server,
+    HOST,
+    PORT,
+  } = await import(pathToFileURL(DIST_SERVER).href);
+  const PUBLIC_HOST = process.env.PUBLIC_HOST ?? HOST;
+  const PUBLIC_PORT = process.env.PUBLIC_PORT ?? PORT;
+  const IS_HTTPS = PUBLIC_PORT !== PORT;
+  const LOCATION = `http${IS_HTTPS ? 's' : ''}://${PUBLIC_HOST}:${PUBLIC_PORT}`;
+  const fetchRoute = async (url: string, locale: string) => {
+    try {
+      return await fetch(`${LOCATION}${url}`, {
+        dispatcher: ssgDispatcher,
+        headers: {
+          'accept-language': locale,
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return new Response(
+        `SSG request failed for ${url} (${locale}): ${message}`,
+        {
+          status: 502,
+          statusText: 'Bad Gateway',
+          headers: { 'content-type': 'text/plain; charset=utf-8' },
+        }
+      );
+    }
+  };
+  const app = await (Server as typeof ServerFN)();
   const routes = await discoverRoutes();
   const ssgRoutes = routes.filter((route) => route.mode === 'ssg');
   if (!ssgRoutes.length) {
     return;
   }
+  const ssglnk = new Map<
+    string,
+    { generateStaticParams: (() => Promise<StaticParams[]>) | undefined }
+  >();
+  for (const route of ssgRoutes) {
+    if (ssglnk.has(route.path)) {
+      const lnk = ssglnk.get(route.path)!;
+      if (!lnk?.generateStaticParams) {
+        const pageModule: PageModule = await import(
+          pathToFileURL(route.filePath).href
+        );
+        if (pageModule.generateStaticParams) {
+          ssglnk.set(route.path, {
+            generateStaticParams: pageModule.generateStaticParams,
+          });
+        }
+      }
+    } else {
+      const pageModule: PageModule = await import(
+        pathToFileURL(route.filePath).href
+      );
+      if (pageModule.generateStaticParams) {
+        ssglnk.set(route.path, {
+          generateStaticParams: pageModule.generateStaticParams,
+        });
+      } else {
+        ssglnk.set(route.path, { generateStaticParams: undefined });
+      }
+    }
+  }
+  const ssgLinks = [...ssglnk].map(([path, { generateStaticParams }]) => ({
+    path,
+    params: getRouteParams(path),
+    generateStaticParams,
+  }));
+
   console.log(
     `\n${colors.blue}SSG v1.0.0${colors.reset} ${colors.green}building ssg for production...${colors.reset}`
   );
   const moduleMessages: ModuleMessage[] = [];
   const startTime = Date.now();
-  const template = await fs.readFile(
-    path.join(DIST_CLIENT, 'index.html'),
-    'utf8'
-  );
-  const { render } = await import(
-    pathToFileURL(path.join(DIST_SERVER, 'entry-server.js')).href
-  );
-  for (const route of ssgRoutes) {
-    const pageModule = await import(pathToFileURL(route.filePath).href);
-    const paramNames = getRouteParams(route.path);
-    if (paramNames.length === 0) {
+  for (const route of ssgLinks) {
+    const errorGen = new Set<string>();
+    if (route.params.length === 0) {
       for (const locale of languages) {
-        const i18n = await createI18n(locale);
-        const html = await renderRoute({
-          route,
-          routePath: route.path,
-          render,
-          template,
-          i18n,
-        });
+        const response = await fetchRoute(route.path, locale);
+        if (!response.ok) {
+          errorGen.add(
+            `${colors.red}Failed to prerender${colors.reset} ${colors.gray}${route.path}${colors.reset}: ${response.status} ${response.statusText}`
+          );
+          continue;
+        }
+        const html = await response.text();
         const output = outputPath(route.path, locale);
         await fs.mkdir(path.dirname(output), {
           recursive: true,
@@ -262,29 +164,32 @@ async function main() {
       }
       continue;
     }
-
-    let staticParams: StaticParams[] = [];
-    if (pageModule.generateStaticParams) {
-      staticParams = await pageModule.generateStaticParams();
+    if (route.params.length > 0 && !route.generateStaticParams) {
+      errorGen.add(
+        `No "generateStaticParams" function has been found for the route ${route.path} but it requires parameters.`
+      );
+      continue;
     }
-    const errorGen = new Set<string>();
     let missingCount = 0;
-    for (const entry of staticParams) {
+    const params = await route.generateStaticParams!();
+    for (const entry of params) {
       const routePath = resolveRoutePath(route.path, entry);
       if (typeof routePath !== 'string') {
         errorGen.add(routePath.error);
         missingCount++;
         continue;
       }
+      let hasMissed = false;
       for (const locale of languages) {
-        const i18n = await createI18n(locale);
-        const html = await renderRoute({
-          route,
-          routePath,
-          render,
-          template,
-          i18n,
-        });
+        const response = await fetchRoute(routePath, locale);
+        if (!response.ok) {
+          errorGen.add(
+            `${colors.red}Failed to prerender${colors.reset} ${colors.gray}${routePath}${colors.reset}: ${response.status} ${response.statusText}`
+          );
+          hasMissed = true;
+          continue;
+        }
+        const html = await response.text();
         const output = outputPath(routePath, locale);
         await fs.mkdir(path.dirname(output), {
           recursive: true,
@@ -299,6 +204,9 @@ async function main() {
           gzipSize,
         });
       }
+      if (hasMissed) {
+        missingCount++;
+      }
     }
     if (errorGen.size > 0) {
       errorGen.forEach((e) =>
@@ -309,7 +217,7 @@ async function main() {
       );
       moduleMessages.push({
         type: 'error',
-        message: `${colors.green}${staticParams.length - missingCount}${colors.reset} out of ${colors.red}${staticParams.length}${colors.reset} path${staticParams.length > 1 ? 's' : ''} on ${colors.gray}${route.path}${colors.reset} has been generated`,
+        message: `${colors.green}${params.length - missingCount}${colors.reset} out of ${colors.red}${params.length}${colors.reset} path${params.length > 1 ? 's' : ''} on ${colors.gray}${route.path}${colors.reset} has been generated`,
       });
     }
   }
@@ -351,6 +259,8 @@ async function main() {
   console.log(
     `\n${colors.green}✓ built in ${endTime - startTime}ms${colors.reset}\n`
   );
+  await app.close();
+  process.exit(1);
 }
 
 main().catch((error) => {
