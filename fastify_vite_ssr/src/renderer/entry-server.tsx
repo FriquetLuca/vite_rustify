@@ -20,11 +20,13 @@ export async function render({
   res,
   i18n,
   props,
+  nonce,
 }: {
   req: FastifyRequest;
   res: FastifyReply;
   i18n: i18n;
   props: RouteData;
+  nonce: string;
 }) {
   const routes = createRoutes(props);
   const { query, dataRoutes } = createStaticHandler(routes);
@@ -39,11 +41,7 @@ export async function render({
   return (
     <React.StrictMode>
       <I18nextProvider i18n={i18n}>
-        <StaticRouterProvider
-          router={router}
-          context={context}
-          nonce="the-nonce"
-        />
+        <StaticRouterProvider router={router} context={context} nonce={nonce} />
       </I18nextProvider>
     </React.StrictMode>
   );

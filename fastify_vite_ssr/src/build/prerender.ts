@@ -65,10 +65,9 @@ async function main() {
     HOST,
     PORT,
   } = await import(pathToFileURL(DIST_SERVER).href);
-  const PUBLIC_HOST = process.env.PUBLIC_HOST ?? HOST;
-  const PUBLIC_PORT = process.env.PUBLIC_PORT ?? PORT;
-  const IS_HTTPS = PUBLIC_PORT !== PORT;
-  const LOCATION = `http${IS_HTTPS ? 's' : ''}://${PUBLIC_HOST}:${PUBLIC_PORT}`;
+  const PUBLIC_HOST = process.env.HOST ?? HOST;
+  const PUBLIC_PORT = process.env.HTTP_PORT ?? PORT;
+  const LOCATION = `http://${PUBLIC_HOST}:${PUBLIC_PORT}`;
   const fetchRoute = async (url: string, locale: string) => {
     try {
       return await fetch(`${LOCATION}${url}`, {
@@ -245,17 +244,18 @@ async function main() {
       `${colors.red}✗${colors.reset} ${errCount} module${errCount > 1 ? 's' : ''} failed.`
     );
   }
-  for (const modMsg of moduleMessages) {
-    if (modMsg.type === 'error') {
-      console.log(modMsg.message);
-    } else {
+  moduleMessages
+    .filter((m) => m.type === 'gen')
+    .forEach((modMsg) =>
       console.log(
         `${colors.gray}${RAW_DIST_SSG}${colors.reset}` +
           `${colors.green}${modMsg.location.padEnd(offset)}${colors.reset} ` +
           `${colors.gray}${colors.bold}${formatBytes(modMsg.size)}${colors.reset} ${colors.gray}│ gzip: ${formatBytes(modMsg.gzipSize)}${colors.reset}`
-      );
-    }
-  }
+      )
+    );
+  moduleMessages
+    .filter((m) => m.type === 'error')
+    .forEach((modMsg) => console.log(modMsg.message));
   console.log(
     `\n${colors.green}✓ built in ${endTime - startTime}ms${colors.reset}\n`
   );

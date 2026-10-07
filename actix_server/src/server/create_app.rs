@@ -2,6 +2,7 @@ use crate::config::env_config;
 use crate::middleware::{session_middleware, HttpsRedirect, SessionValidation};
 use crate::server::{
   configure_default_services::configure_default_services, error::AppError,
+  health::health,
 };
 use crate::states::SharedBloom;
 
@@ -67,6 +68,7 @@ pub fn create_app(
     .app_data(pool_data.clone())
     .app_data(Data::new(bloom_filters.clone()))
     .app_data(Data::new(trusted_proxies))
+    .service(health)
     .service(crate::api::create_router())
     .configure(configure_default_services)
 }

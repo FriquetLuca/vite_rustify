@@ -65,7 +65,6 @@ export default async function Server() {
   });
 
   const routes = deduplicateRoutes(await discoverRoutes());
-  console.log(routes);
   let vite: ViteDevServer | undefined;
 
   if (isProduction) {
@@ -157,7 +156,18 @@ export default async function Server() {
         );
         if (fs.existsSync(staticLocation)) {
           const html = fs.readFileSync(staticLocation, 'utf8');
-          return reply.code(200).type('text/html; charset=utf-8').send(html);
+          const csp = [
+            "default-src 'self'",
+            `script-src 'self'`,
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: https:",
+            "font-src 'self' data:",
+          ].join('; ');
+          return reply
+            .code(200)
+            .type('text/html; charset=utf-8')
+            .header('Content-Security-Policy', csp)
+            .send(html);
         }
       }
 
@@ -178,9 +188,7 @@ export default async function Server() {
           .send('<h1>404 - Not Found</h1>');
       }
 
-      const mode = !isProduction && route.mode === 'ssg' ? 'ssr' : route.mode;
-
-      if (mode === 'csr' || mode === 'ssg') {
+      if (route.mode === 'csr') {
         let template: string;
         if (!isProduction) {
           template = fs.readFileSync(FS_TEMPLATE, 'utf8');
@@ -192,6 +200,7 @@ export default async function Server() {
           request,
           reply,
           template,
+          title: TITLE,
         });
       }
 
@@ -215,6 +224,8 @@ export default async function Server() {
         route,
         render,
         template,
+        title: TITLE,
+        mode: route.mode,
       });
     } catch (error) {
       if (vite) {

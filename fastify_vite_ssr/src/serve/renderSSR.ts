@@ -1,10 +1,12 @@
-import { renderToPipeableStream } from 'react-dom/server';
+import crypto from 'node:crypto';
 import { Transform } from 'node:stream';
+import { renderToPipeableStream } from 'react-dom/server';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { InitialProps, RouteData } from '../types';
 import type { RouteDefinition } from './routes';
 import { loadRouteData } from './loadRouteData.js';
 import { serverSideTranslations } from '../utils/serverSideTranslations.js';
+import { matchPath } from 'react-router';
 
 const ABORT_DELAY = process.env.VITE_ABORT_DELAY
   ? Number(process.env.VITE_ABORT_DELAY)
@@ -16,15 +18,19 @@ export async function renderSSR({
   route,
   render,
   template,
+  title,
+  mode,
 }: {
   request: FastifyRequest;
   reply: FastifyReply;
   route: RouteDefinition;
   render: Function;
   template: string;
+  title: string;
+  mode: 'ssg' | 'ssr';
 }) {
   const pathname = request.url.split('?')[0];
-  const match = (await import('react-router')).matchPath(
+  const match = matchPath(
     {
       path: route.path,
       end: true,
@@ -67,11 +73,30 @@ export async function renderSSR({
     data: result.data,
     title: result.title,
   };
+  const scriptContent =
+    `window.__SSR__=true;` +
+    `window.__INITIAL_PROPS__=${JSON.stringify(initialProps)};` +
+    `window.__ROUTE_DATA__=${JSON.stringify({
+      [route.path]: routeData,
+    })};`;
+
+  const nonce =
+    mode === 'ssr' ? crypto.randomBytes(16).toString('base64') : undefined;
+  let script: string;
+  let scriptCsp: string;
+  if (mode === 'ssr') {
+    script = `<script nonce="${nonce}">` + scriptContent + `</script>`;
+    scriptCsp = ` 'nonce-${nonce}'`;
+  } else {
+    script = `<script>` + scriptContent + `</script>`;
+    scriptCsp = '';
+  }
   const element = await render({
     req: request,
     res: reply,
     i18n: request.i18n,
     props: routeData,
+    nonce,
   });
   const res = reply.raw;
   const { pipe, abort } = renderToPipeableStream(element, {
@@ -84,13 +109,22 @@ export async function renderSSR({
       }
     },
     onShellReady() {
+      const csp = [
+        "default-src 'self'",
+        `script-src 'self'${scriptCsp}`,
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: https:",
+        "font-src 'self' data:",
+      ].join('; ');
+
       res.writeHead(result.statusCode, {
         'Content-Type': 'text/html; charset=utf-8',
+        'Content-Security-Policy': csp,
       });
       const [htmlStart, htmlEnd] = template.split('<!--app-html-->');
       res.write(
         htmlStart
-          .replace('<!--app-title-->', result.title ?? '')
+          .replace('<!--app-title-->', result.title ?? title)
           .replace('<!--app-static-props-->', ''),
         'utf8'
       );
@@ -102,14 +136,6 @@ export async function renderSSR({
         },
       });
       transform.on('finish', () => {
-        const script =
-          `<script>` +
-          `window.__SSR__=true;` +
-          `window.__INITIAL_PROPS__=${JSON.stringify(initialProps)};` +
-          `window.__ROUTE_DATA__=${JSON.stringify({
-            [route.path]: routeData,
-          })};` +
-          `</script>`;
         res.write(script + htmlEnd, 'utf8');
         res.end();
       });

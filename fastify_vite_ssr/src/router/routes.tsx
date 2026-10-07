@@ -2,7 +2,7 @@ import type { RouteObject } from 'react-router';
 import { ServerPropsProvider } from './ServerPropsProvider.js';
 import type { RouteData } from '../types';
 import frameworkRouter from 'virtual:framework-router';
-console.log(frameworkRouter);
+
 export function createRoutes(ssp?: RouteData): RouteObject[] {
   return frameworkRouter.map(({ path, load }) => ({
     path,

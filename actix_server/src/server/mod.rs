@@ -5,6 +5,7 @@ mod csr;
 mod error;
 #[cfg(feature = "proxy_default_service")]
 mod forward;
+mod health;
 #[cfg(feature = "vite_hmr_proxy")]
 mod ws_hmr_proxy;
 
