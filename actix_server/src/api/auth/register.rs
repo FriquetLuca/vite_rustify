@@ -1,8 +1,7 @@
 use crate::{server::AppError, states::SharedBloom};
 use actix_web::{post, web, HttpResponse, Responder};
 use argon2::{Argon2, PasswordHasher};
-use password_hash::SaltString;
-use rand_core::OsRng;
+use password_hash::generate_salt;
 use regex::Regex;
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -75,10 +74,10 @@ pub async fn register_route(
 
   // Hash password and insert into global users table
   let argon2 = Argon2::default();
-  let salt = SaltString::generate(&mut OsRng);
+  let salt = generate_salt();
 
   let hash = argon2
-    .hash_password_with_salt(req.password.as_bytes(), salt.as_str().as_bytes())
+    .hash_password_with_salt(req.password.as_bytes(), &salt)
     .map_err(|_| AppError::InternalServerError)?
     .to_string();
 

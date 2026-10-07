@@ -1,7 +1,5 @@
 mod configure_default_services;
 mod create_app;
-#[cfg(not(feature = "proxy_default_service"))]
-mod csr;
 mod error;
 #[cfg(feature = "proxy_default_service")]
 mod forward;

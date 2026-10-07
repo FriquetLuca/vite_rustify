@@ -5,10 +5,16 @@ IFS=$'\n\t'
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 rust_log_env=""
+
 for arg in "$@"; do
-  if [[ "$arg" == "--log" ]]; then
-    rust_log_env="RUST_LOG=debug"
-  fi
+  case "$arg" in
+    --log)
+      rust_log_env="RUST_LOG=info"
+      ;;
+    --log=*)
+      rust_log_env="RUST_LOG=${arg#--log=}"
+      ;;
+  esac
 done
 
 (trap 'kill 0' SIGINT; \

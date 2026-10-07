@@ -13,7 +13,7 @@ use crate::server::create_app;
 use crate::states::BloomFtr;
 use actix_web::web::Data;
 use actix_web::HttpServer;
-use log::debug;
+use log::info;
 use std::sync::Arc;
 
 fn format_url(
@@ -35,7 +35,7 @@ async fn main() -> std::io::Result<()> {
 
   env_logger::init();
 
-  debug!(
+  info!(
     "Starting server on:\n{}\n{}",
     format_url(
       "http",

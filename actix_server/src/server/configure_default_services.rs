@@ -1,9 +1,8 @@
 #[cfg(feature = "proxy_default_service")]
 use crate::config::env_config;
-#[cfg(not(feature = "proxy_default_service"))]
-use crate::server::csr::{create_csr_assets, create_csr_route};
 #[cfg(feature = "proxy_default_service")]
 use crate::server::forward::{forward, ForwardUrl};
+use crate::server::health::health;
 #[cfg(feature = "vite_hmr_proxy")]
 use crate::server::ws_hmr_proxy::configure_hmr_proxy;
 #[cfg(feature = "proxy_default_service")]
@@ -17,6 +16,7 @@ use std::net::ToSocketAddrs as _;
 use url::Url;
 
 pub fn configure_default_services(cfg: &mut ServiceConfig) {
+  cfg.service(health);
   #[cfg(feature = "proxy_default_service")]
   {
     let forward_socket_addr =
@@ -37,11 +37,5 @@ pub fn configure_default_services(cfg: &mut ServiceConfig) {
     configure_hmr_proxy(cfg);
 
     cfg.default_service(web::to(forward));
-  }
-  #[cfg(not(feature = "proxy_default_service"))]
-  {
-    cfg
-      .service(create_csr_assets())
-      .default_service(create_csr_route());
   }
 }
