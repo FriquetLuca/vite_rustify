@@ -156,18 +156,7 @@ export default async function Server() {
         );
         if (fs.existsSync(staticLocation)) {
           const html = fs.readFileSync(staticLocation, 'utf8');
-          const csp = [
-            "default-src 'self'",
-            `script-src 'self'`,
-            "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: https:",
-            "font-src 'self' data:",
-          ].join('; ');
-          return reply
-            .code(200)
-            .type('text/html; charset=utf-8')
-            .header('Content-Security-Policy', csp)
-            .send(html);
+          return reply.code(200).type('text/html; charset=utf-8').send(html);
         }
       }
 
@@ -225,7 +214,6 @@ export default async function Server() {
         render,
         template,
         title: TITLE,
-        mode: route.mode,
       });
     } catch (error) {
       if (vite) {

@@ -17,4 +17,4 @@ done
 
 (trap 'kill 0' SIGINT; \
 bash -c "$rust_log_env cargo run --no-default-features --features proxy_default_service" & \
-bash -c 'cd fastify_vite_ssr; npm run start')
+bash -c 'cd fastify_vite; npm run start')

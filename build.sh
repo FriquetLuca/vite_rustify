@@ -109,6 +109,6 @@ then
 fi
 
 (
-  cd fastify_vite_ssr
+  cd fastify_vite
   npm run build
 )
