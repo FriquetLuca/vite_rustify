@@ -9,32 +9,31 @@ import i18next from 'i18next';
 import i18nextBackend from 'i18next-fs-backend';
 import * as i18nextMiddleware from 'i18next-http-middleware';
 import { matchPath } from 'react-router';
-import dotenv from 'dotenv';
-import type { ViteDevServer } from 'vite';
 import { i18nOptions, languages } from './services/i18n.shared.js';
-import { discoverRoutes } from './serve/routes.js';
+import { discoverRoutes, loadSSGManifest } from './serve/routes.js';
 import { loadRouteData } from './serve/loadRouteData.js';
 import { renderSSR } from './serve/renderSSR.js';
 import { renderCSR } from './serve/renderCSR.js';
 import { resolveLocale } from './serve/locale.js';
 import { getIPs } from './serve/getIPs.js';
 import { deduplicateRoutes } from './serve/deduplicateRoutes.js';
+import {
+  BASE,
+  HOST,
+  IS_PRODUCTION,
+  IS_SECURE,
+  IS_SSG,
+  PORT,
+  TITLE,
+} from './serve/environment.js';
+import type { ViteDevServer } from 'vite';
+import type { RenderFunction } from './types.js';
 
-dotenv.config({
-  path: path.resolve(process.cwd(), '../.env'),
-});
-
-const isSSG = process.env.SSG_GEN === 'true';
-const isProduction = process.env.NODE_ENV === 'production';
-const TITLE = process.env.VITE_APP_NAME ?? 'Fastify Vite';
-const BASE = process.env.VITE_BASE_PATH ?? '/';
-export const HOST = process.env.VITE_HOST ?? '0.0.0.0';
-export const PORT = process.env.VITE_PORT
-  ? Number(process.env.VITE_PORT)
-  : 5173;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FS_CLIENT = path.join(__dirname, 'client/index.html');
 const FS_TEMPLATE = path.join(__dirname, '../index.html');
+const SSG_MANIFEST = path.join(__dirname, '.ssg.json');
+const ssgManifest = loadSSGManifest(SSG_MANIFEST);
 
 export default async function Server() {
   i18next
@@ -50,7 +49,7 @@ export default async function Server() {
         lookupCookie: 'i18next',
       },
       backend: {
-        loadPath: isProduction
+        loadPath: IS_PRODUCTION
           ? 'dist/client/locales/{{ns}}/{{lng}}.json'
           : 'public/locales/{{ns}}/{{lng}}.json',
       },
@@ -67,7 +66,7 @@ export default async function Server() {
   const routes = deduplicateRoutes(await discoverRoutes());
   let vite: ViteDevServer | undefined;
 
-  if (isProduction) {
+  if (IS_PRODUCTION) {
     const sirv = (await import('sirv')).default;
     await app.register(import('@fastify/compress'), {
       global: false,
@@ -92,7 +91,7 @@ export default async function Server() {
     app.use(vite.middlewares);
   }
 
-  if (!isProduction) {
+  if (!IS_PRODUCTION) {
     const uuid = crypto
       .createHash('md5')
       .update(process.cwd())
@@ -147,19 +146,22 @@ export default async function Server() {
   app.all('*', async (request, reply) => {
     try {
       const pathname = request.url.split('?')[0];
-      if (isProduction) {
+      if (IS_SECURE) {
         const locale = resolveLocale(request.headers.host ?? '', request.i18n);
         const reqURL = pathname === '/' ? '/index' : pathname;
-        const staticLocation = path.join(
-          __dirname,
-          `.ssg/${locale}${reqURL}.html`
-        );
+        const ssrPath = `${locale}${reqURL}`;
+        const manifest = ssgManifest.find((m) => m.path === ssrPath);
+        const staticLocation = path.join(__dirname, `.ssg/${ssrPath}.html`);
         if (fs.existsSync(staticLocation)) {
           const html = fs.readFileSync(staticLocation, 'utf8');
-          return reply.code(200).type('text/html; charset=utf-8').send(html);
+          return reply
+            .code(200)
+            .type('text/html; charset=utf-8')
+            .header('Content-Security-Policy', manifest?.header)
+            .send(html);
         }
       }
-
+      // findMap
       const route = routes.find((candidate) =>
         matchPath(
           {
@@ -179,7 +181,7 @@ export default async function Server() {
 
       if (route.mode === 'csr') {
         let template: string;
-        if (!isProduction) {
+        if (!IS_PRODUCTION) {
           template = fs.readFileSync(FS_TEMPLATE, 'utf8');
           template = await vite!.transformIndexHtml(request.url, template);
         } else {
@@ -194,9 +196,9 @@ export default async function Server() {
       }
 
       let template: string;
-      let render: Function;
+      let render: RenderFunction;
 
-      if (!isProduction) {
+      if (!IS_PRODUCTION) {
         template = fs.readFileSync(FS_TEMPLATE, 'utf8');
         template = await vite!.transformIndexHtml(request.url, template);
         render = (await vite!.ssrLoadModule('/src/renderer/entry-server.tsx'))
@@ -237,7 +239,7 @@ export default async function Server() {
       if (!reply.sent) {
         return reply
           .code(500)
-          .send(isProduction ? 'Server error' : String(error));
+          .send(IS_PRODUCTION ? 'Server error' : String(error));
       }
     }
   });
@@ -250,7 +252,7 @@ export default async function Server() {
   return app;
 }
 
-if (!isSSG) {
+if (!IS_SSG) {
   Server();
 
   console.log(

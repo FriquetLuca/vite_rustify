@@ -1,11 +1,13 @@
 import { Transform } from 'node:stream';
+import crypto from 'node:crypto';
 import { renderToPipeableStream } from 'react-dom/server';
-import type { FastifyReply, FastifyRequest } from 'fastify';
-import type { InitialProps, RouteData } from '../types';
-import type { RouteDefinition } from './routes';
+import { matchPath } from 'react-router';
 import { loadRouteData } from './loadRouteData.js';
 import { serverSideTranslations } from '../utils/serverSideTranslations.js';
-import { matchPath } from 'react-router';
+import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { InitialProps, RenderFunction, RouteData } from '../types';
+import type { RouteDefinition } from './routes';
+import { IS_SECURE } from './environment.js';
 
 const ABORT_DELAY = process.env.VITE_ABORT_DELAY
   ? Number(process.env.VITE_ABORT_DELAY)
@@ -22,7 +24,7 @@ export async function renderSSR({
   request: FastifyRequest;
   reply: FastifyReply;
   route: RouteDefinition;
-  render: Function;
+  render: RenderFunction;
   template: string;
   title: string;
 }) {
@@ -76,12 +78,24 @@ export async function renderSSR({
     `window.__ROUTE_DATA__=${JSON.stringify({
       [route.path]: routeData,
     })};`;
+  const nonce = IS_SECURE
+    ? crypto.randomBytes(16).toString('base64')
+    : undefined;
+  let script: string;
+  let scriptCsp: string | undefined;
+  if (IS_SECURE) {
+    script = `<script nonce="${nonce}">` + scriptContent + '</script>';
+    scriptCsp = `'nonce-${nonce}'`;
+  } else {
+    script = '<script>' + scriptContent + '</script>';
+  }
 
   const element = await render({
     req: request,
     res: reply,
     i18n: request.i18n,
     props: routeData,
+    nonce,
   });
   const res = reply.raw;
   const { pipe, abort } = renderToPipeableStream(element, {
@@ -94,9 +108,23 @@ export async function renderSSR({
       }
     },
     onShellReady() {
-      res.writeHead(result.statusCode, {
-        'Content-Type': 'text/html; charset=utf-8',
-      });
+      if (IS_SECURE) {
+        const csp = [
+          "default-src 'self'",
+          `script-src 'self' ${scriptCsp}`,
+          "style-src 'self' 'unsafe-inline'",
+          "img-src 'self' data: https:",
+          "font-src 'self' data:",
+        ].join('; ');
+        res.writeHead(result.statusCode, {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Content-Security-Policy': csp,
+        });
+      } else {
+        res.writeHead(result.statusCode, {
+          'Content-Type': 'text/html; charset=utf-8',
+        });
+      }
       const [htmlStart, htmlEnd] = template.split('<!--app-html-->');
       res.write(
         htmlStart
@@ -107,12 +135,11 @@ export async function renderSSR({
       const transform = new Transform({
         transform(chunk, _encoding, callback) {
           res.write(chunk.toString(), 'utf8');
-
           callback();
         },
       });
       transform.on('finish', () => {
-        res.write(`<script>` + scriptContent + `</script>` + htmlEnd, 'utf8');
+        res.write(script + htmlEnd, 'utf8');
         res.end();
       });
       pipe(transform);

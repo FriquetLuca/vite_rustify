@@ -2,11 +2,29 @@ import type {
   FastifyBaseLogger,
   FastifySchema,
   setCookieWrapper,
+  FastifyReply,
+  FastifyRequest,
 } from 'fastify';
 import type { RequestRouteOptions } from 'fastify/types/request';
 import type { HttpHeader } from 'fastify/types/utils';
 import type { Resource, ResourceKey, TFunction } from 'i18next';
 import type { i18n } from 'i18next';
+
+export interface ManifestSSG {
+  path: string;
+  header: string;
+  hashes: string[];
+}
+
+export interface RenderProps {
+  req: FastifyRequest;
+  res: FastifyReply;
+  i18n: i18n;
+  props: RouteData;
+  nonce?: string;
+}
+
+export type RenderFunction = (props: RenderProps) => Promise<React.JSX.Element>;
 
 export interface SSRCtx {
   id: string;

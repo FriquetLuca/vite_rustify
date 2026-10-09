@@ -7,25 +7,14 @@ import {
   StaticRouterProvider,
 } from 'react-router';
 
-import type { RouteData } from '../types';
-import type { i18n } from 'i18next';
+import type { RenderProps } from '../types';
 import { createRoutes } from '../router/routes.js';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 const HOST = process.env.VITE_HOST ?? '0.0.0.0';
 const PORT = process.env.VITE_PORT ? Number(process.env.VITE_PORT) : 5173;
 
-export async function render({
-  req,
-  res,
-  i18n,
-  props,
-}: {
-  req: FastifyRequest;
-  res: FastifyReply;
-  i18n: i18n;
-  props: RouteData;
-}) {
+export async function render({ req, res, i18n, props, nonce }: RenderProps) {
   const routes = createRoutes(props);
   const { query, dataRoutes } = createStaticHandler(routes);
   const request = createFetchRequest(req, res);
@@ -39,7 +28,7 @@ export async function render({
   return (
     <React.StrictMode>
       <I18nextProvider i18n={i18n}>
-        <StaticRouterProvider router={router} context={context} />
+        <StaticRouterProvider router={router} context={context} nonce={nonce} />
       </I18nextProvider>
     </React.StrictMode>
   );

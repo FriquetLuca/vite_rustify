@@ -8,15 +8,18 @@ import { languages } from '../services/i18n.shared.js';
 import type { StaticParams } from '../types';
 import { resolveRoutePath, getRouteParams } from '../serve/resolveRoutePath.js';
 import type ServerFN from '../server.js';
+import { createSsgCsp, type CspResult } from './createSsgCsp.js';
 
 const ssgDispatcher = new Agent({
   connect: {
     rejectUnauthorized: false,
   },
 });
-const RAW_DIST_SSG = 'dist/.ssg/';
+const RAW_DIST = 'dist';
+const DIST = path.resolve(RAW_DIST);
+const DIST_SERVER = path.join(DIST, 'server.js');
+const RAW_DIST_SSG = path.join(RAW_DIST, '.ssg');
 const DIST_SSG = path.resolve(RAW_DIST_SSG);
-const DIST_SERVER = path.resolve('dist/server.js');
 
 const colors = {
   reset: '\x1b[0m',
@@ -45,6 +48,12 @@ function outputPath(routePath: string, locale: string) {
     return path.join(DIST_SSG, locale, 'index.html');
   }
   return path.join(DIST_SSG, locale, `${routePath.replace(/^\/+/, '')}.html`);
+}
+function outputRoute(routePath: string, locale: string) {
+  if (routePath === '/') {
+    return path.join(locale, 'index');
+  }
+  return path.join(locale, `${routePath.replace(/^\/+/, '')}`);
 }
 type PageModule = { generateStaticParams?: () => Promise<StaticParams[]> };
 type ModuleMessage =
@@ -134,6 +143,7 @@ async function main() {
     `\n${colors.blue}SSG v1.0.0${colors.reset} ${colors.green}building ssg for production...${colors.reset}`
   );
   const moduleMessages: ModuleMessage[] = [];
+  const scriptHashes: ({ path: string } & CspResult)[] = [];
   const startTime = Date.now();
   for (const route of ssgLinks) {
     const errorGen = new Set<string>();
@@ -152,6 +162,10 @@ async function main() {
           recursive: true,
         });
         await fs.writeFile(output, html, 'utf8');
+        scriptHashes.push({
+          ...createSsgCsp(html),
+          path: outputRoute(route.path, locale),
+        });
         const size = Buffer.byteLength(html, 'utf8');
         const gzipSize = gzipSync(html).byteLength;
         moduleMessages.push({
@@ -194,6 +208,10 @@ async function main() {
           recursive: true,
         });
         await fs.writeFile(output, html, 'utf8');
+        scriptHashes.push({
+          ...createSsgCsp(html),
+          path: outputRoute(routePath, locale),
+        });
         const size = Buffer.byteLength(html, 'utf8');
         const gzipSize = gzipSync(html).byteLength;
         moduleMessages.push({
@@ -220,6 +238,11 @@ async function main() {
       });
     }
   }
+  await fs.writeFile(
+    path.join(DIST, '.ssg.json'),
+    JSON.stringify(scriptHashes),
+    'utf8'
+  );
   const endTime = Date.now();
   const genCount = moduleMessages.reduce(
     (prev, curr) => (curr.type !== 'error' ? prev + 1 : prev),
@@ -248,7 +271,7 @@ async function main() {
     .filter((m) => m.type === 'gen')
     .forEach((modMsg) =>
       console.log(
-        `${colors.gray}${RAW_DIST_SSG}${colors.reset}` +
+        `${colors.gray}${RAW_DIST_SSG}/${colors.reset}` +
           `${colors.green}${modMsg.location.padEnd(offset)}${colors.reset} ` +
           `${colors.gray}${colors.bold}${formatBytes(modMsg.size)}${colors.reset} ${colors.gray}│ gzip: ${formatBytes(modMsg.gzipSize)}${colors.reset}`
       )
