@@ -69,6 +69,11 @@ type ModuleMessage =
     };
 
 async function main() {
+  const routes = await discoverRoutes();
+  const ssgRoutes = routes.filter((route) => route.mode === 'ssg');
+  if (!ssgRoutes.length) {
+    return;
+  }
   const {
     default: Server,
     HOST,
@@ -98,11 +103,6 @@ async function main() {
     }
   };
   const app = await (Server as typeof ServerFN)();
-  const routes = await discoverRoutes();
-  const ssgRoutes = routes.filter((route) => route.mode === 'ssg');
-  if (!ssgRoutes.length) {
-    return;
-  }
   const ssglnk = new Map<
     string,
     { generateStaticParams: (() => Promise<StaticParams[]>) | undefined }

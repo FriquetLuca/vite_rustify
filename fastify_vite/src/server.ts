@@ -28,12 +28,15 @@ import {
 } from './serve/environment.js';
 import type { ViteDevServer } from 'vite';
 import type { RenderFunction } from './types.js';
+import { FileCache } from './serve/fileCache.js';
+import { getStaticHtml } from './serve/getStaticHtml.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FS_CLIENT = path.join(__dirname, 'client/index.html');
 const FS_TEMPLATE = path.join(__dirname, '../index.html');
 const SSG_MANIFEST = path.join(__dirname, '.ssg.json');
 const ssgManifest = loadSSGManifest(SSG_MANIFEST);
+const ssgCache = new FileCache();
 
 export default async function Server() {
   i18next
@@ -152,8 +155,8 @@ export default async function Server() {
         const ssrPath = `${locale}${reqURL}`;
         const manifest = ssgManifest.find((m) => m.path === ssrPath);
         const staticLocation = path.join(__dirname, `.ssg/${ssrPath}.html`);
-        if (fs.existsSync(staticLocation)) {
-          const html = fs.readFileSync(staticLocation, 'utf8');
+        const html = await ssgCache.get(staticLocation);
+        if (html !== undefined) {
           return reply
             .code(200)
             .type('text/html; charset=utf-8')
@@ -185,7 +188,7 @@ export default async function Server() {
           template = fs.readFileSync(FS_TEMPLATE, 'utf8');
           template = await vite!.transformIndexHtml(request.url, template);
         } else {
-          template = fs.readFileSync(FS_CLIENT, 'utf8');
+          template = (await getStaticHtml(FS_CLIENT))!;
         }
         return renderCSR({
           request,
@@ -204,7 +207,7 @@ export default async function Server() {
         render = (await vite!.ssrLoadModule('/src/renderer/entry-server.tsx'))
           .render;
       } else {
-        template = fs.readFileSync(FS_CLIENT, 'utf8');
+        template = (await getStaticHtml(FS_CLIENT))!;
         // @ts-expect-error - built file exists only in production
         render = (await import('./render/entry-server.js')).render;
       }

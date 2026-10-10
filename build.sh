@@ -17,20 +17,11 @@ format_duration() {
   local ms=$((milliseconds % 1000))
 
   if (( hours > 0 )); then
-    printf '%dh %02dm %02d.%03ds' \
-      "$hours" \
-      "$minutes" \
-      "$seconds" \
-      "$ms"
+    printf '%dh %02dm %02d.%03ds' "$hours" "$minutes" "$seconds" "$ms"
   elif (( minutes > 0 )); then
-    printf '%dm %02d.%03ds' \
-      "$minutes" \
-      "$seconds" \
-      "$ms"
+    printf '%dm %02d.%03ds' "$minutes" "$seconds" "$ms"
   elif (( seconds > 0 )); then
-    printf '%d.%03ds' \
-      "$seconds" \
-      "$ms"
+    printf '%d.%03ds' "$seconds" "$ms"
   else
     printf '%dms' "$ms"
   fi
@@ -40,11 +31,12 @@ cleanup() {
   if [[ -n "$backend_pid" ]]; then
     kill "$backend_pid" 2>/dev/null || true
     wait "$backend_pid" 2>/dev/null || true
-
     backend_pid=""
   fi
+
   END_TIME_MS=$(( ${EPOCHREALTIME/./} / 1000 ))
   ELAPSED_MS=$((END_TIME_MS - START_TIME_MS))
+
   printf '%b\n' \
     "${GREEN}✓ build completed successfully in $(format_duration "$ELAPSED_MS")${RESET}"
 }
@@ -72,40 +64,50 @@ BACKEND_URL="${BACKEND_PROTOCOL}://${BACKEND_HOST}:${BACKEND_PORT}"
 trap cleanup EXIT INT TERM
 
 echo -e "${BLUE}Actix Server v0.13${RESET} ${GREEN}building the server for production...${RESET}"
+
 cargo build \
   --no-default-features \
   --features proxy_default_service \
   --release
 
-cargo run \
-  --no-default-features \
-  --features proxy_default_service \
-  --release &
+if IFS= read -r -d '' _ < <(
+  find fastify_vite/src/pages \
+    -type f \
+    \( -name '*.ssg.tsx' -o -name '*.ssg.jsx' \
+       -o -name '*.ssg.ts' -o -name '*.ssg.js' \) \
+    -print0 -quit
+); then
+  cargo run \
+    --no-default-features \
+    --features proxy_default_service \
+    --release 2>/dev/null &
 
-backend_pid=$!
+  backend_pid=$!
 
-for _ in {1..60}; do
-  if curl --silent --fail \
+  for _ in {1..60}; do
+    if curl --silent --fail \
+      "${BACKEND_URL}/health" \
+      >/dev/null 2>&1
+    then
+      break
+    fi
+
+    if ! kill -0 "$backend_pid" 2>/dev/null; then
+      echo "Server exited before becoming ready." >&2
+      wait "$backend_pid"
+      exit 1
+    fi
+
+    sleep 0.5
+  done
+
+  if ! curl --silent --fail \
     "${BACKEND_URL}/health" \
     >/dev/null 2>&1
   then
-    break
-  fi
-  if ! kill -0 "$backend_pid" 2>/dev/null; then
-    echo "Server exited before becoming ready."
-    wait "$backend_pid"
+    echo "Server did not become ready." >&2
     exit 1
   fi
-  
-  sleep 0.5
-done
-
-if ! curl --silent --fail \
-  "${BACKEND_URL}/health" \
-  >/dev/null 2>&1
-then
-  echo "Server did not become ready."
-  exit 1
 fi
 
 (

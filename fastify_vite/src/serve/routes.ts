@@ -34,7 +34,7 @@ const ROUTE_FILE_REGEX = /\.(ssr|ssg|csr)\.(tsx|ts|jsx|js)$/;
 const SERVER_FILE_REGEX = /\.server\.(tsx|ts|jsx|js)$/;
 
 export function loadSSGManifest(manifestLocation: string): ManifestSSG[] {
-  if (IS_SECURE) {
+  if (IS_SECURE && fs.existsSync(manifestLocation)) {
     return JSON.parse(fs.readFileSync(manifestLocation, 'utf-8'));
   }
   return [];
