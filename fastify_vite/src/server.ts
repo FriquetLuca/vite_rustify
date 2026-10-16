@@ -10,7 +10,7 @@ import i18nextBackend from 'i18next-fs-backend';
 import * as i18nextMiddleware from 'i18next-http-middleware';
 import { matchPath } from 'react-router';
 import { i18nOptions, languages } from './services/i18n.shared.js';
-import { discoverRoutes, loadSSGManifest } from './serve/routes.js';
+import { loadSSGManifest } from './serve/routes.js';
 import { loadRouteData } from './serve/loadRouteData.js';
 import { renderSSR } from './serve/renderSSR.js';
 import { renderCSR } from './serve/renderCSR.js';
@@ -30,15 +30,20 @@ import type { ViteDevServer } from 'vite';
 import type { RenderFunction } from './types.js';
 import { FileCache } from './serve/fileCache.js';
 import { getStaticHtml } from './serve/getStaticHtml.js';
+import serverRoutes from 'virtual:server-router';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const FS_CLIENT = path.join(__dirname, 'client/index.html');
+const FS_CLIENT = path.join(__dirname, '../client/index.html');
 const FS_TEMPLATE = path.join(__dirname, '../index.html');
-const SSG_MANIFEST = path.join(__dirname, '.ssg.json');
+const SSG_MANIFEST = path.join(__dirname, '../.ssg.json');
 const ssgManifest = loadSSGManifest(SSG_MANIFEST);
 const ssgCache = new FileCache();
 
-export default async function Server() {
+interface ServerProps {
+  vite?: ViteDevServer;
+}
+
+export default async function Server({ vite }: ServerProps = {}) {
   i18next
     .use(i18nextBackend)
     .use(i18nextMiddleware.LanguageDetector)
@@ -66,9 +71,7 @@ export default async function Server() {
     i18next,
   });
 
-  const routes = deduplicateRoutes(await discoverRoutes());
-  let vite: ViteDevServer | undefined;
-
+  const routes = deduplicateRoutes(serverRoutes);
   if (IS_PRODUCTION) {
     const sirv = (await import('sirv')).default;
     await app.register(import('@fastify/compress'), {
@@ -76,22 +79,16 @@ export default async function Server() {
     });
     app.use(
       BASE,
-      sirv(path.join(__dirname, 'client'), {
+      sirv(path.join(__dirname, '../client'), {
         extensions: [],
         gzip: true,
         brotli: true,
       })
     );
   } else {
-    const { createServer } = await import('vite');
-    vite = await createServer({
-      server: {
-        middlewareMode: true,
-      },
-      appType: 'custom',
-      base: BASE,
-    });
-    app.use(vite.middlewares);
+    if (vite?.middlewares) {
+      app.use(vite.middlewares);
+    }
   }
 
   if (!IS_PRODUCTION) {
@@ -115,7 +112,7 @@ export default async function Server() {
   app.get('/__data/*', async (request, reply) => {
     const routePath = request.url.replace('/__data', '').split('?')[0];
     const route = routes.find((candidate) => candidate.path === routePath);
-    if (!route?.serverFilePath) {
+    if (!route?.serverFile) {
       return {};
     }
     const match = matchPath(
@@ -208,8 +205,7 @@ export default async function Server() {
           .render;
       } else {
         template = (await getStaticHtml(FS_CLIENT))!;
-        // @ts-expect-error - built file exists only in production
-        render = (await import('./render/entry-server.js')).render;
+        render = (await import('./renderer/entry-server.js')).render;
       }
 
       return renderSSR({

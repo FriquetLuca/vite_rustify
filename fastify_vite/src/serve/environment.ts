@@ -5,6 +5,7 @@ let injectedEnv = false;
 if (!injectedEnv) {
   dotenv.config({
     path: path.resolve(process.cwd(), '../.env'),
+    quiet: true,
   });
   injectedEnv = true;
 }

@@ -28,3 +28,22 @@ declare module 'virtual:framework-router' {
   }[];
   export default pages;
 }
+
+declare module 'virtual:server-router' {
+  import type { SSRCtx, GetStaticProps } from './src/types.js';
+
+  export type ServerRouteModule = {
+    default: (props: SSRCtx) => GetStaticProps;
+  };
+
+  export type ServerRoute = {
+    path: string;
+    mode: 'ssr' | 'ssg' | 'csr';
+    filePath: string;
+    serverFile?: () => ServerRouteModule;
+  };
+
+  const routes: ServerRoute[];
+
+  export default routes;
+}

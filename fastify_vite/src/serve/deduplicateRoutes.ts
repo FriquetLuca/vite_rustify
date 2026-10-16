@@ -1,5 +1,5 @@
 import type { RenderMode } from '../types.js';
-import type { RouteDefinition } from './routes.js';
+import type { ServerRoute } from 'virtual:server-router';
 
 const renderModePriority: Record<RenderMode, number> = {
   csr: 0,
@@ -7,10 +7,8 @@ const renderModePriority: Record<RenderMode, number> = {
   ssg: 2,
 };
 
-export function deduplicateRoutes(
-  routes: RouteDefinition[]
-): RouteDefinition[] {
-  const routesByPath = new Map<string, RouteDefinition>();
+export function deduplicateRoutes(routes: ServerRoute[]): ServerRoute[] {
+  const routesByPath = new Map<string, ServerRoute>();
 
   for (const route of routes) {
     const existing = routesByPath.get(route.path);
@@ -39,7 +37,7 @@ export function deduplicateRoutes(
      * prefer the one with the server module. This prevents an
      * index route from accidentally hiding server-side props.
      */
-    if (!existing.serverFilePath && route.serverFilePath) {
+    if (!existing.serverFile && route.serverFile) {
       routesByPath.set(route.path, route);
       continue;
     }

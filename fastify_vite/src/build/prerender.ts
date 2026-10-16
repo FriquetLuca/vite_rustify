@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { pathToFileURL } from 'node:url';
-import { discoverRoutes } from '../serve/routes.js';
+import serverRoutes from 'virtual:server-router';
 import { languages } from '../services/i18n.shared.js';
 import type { StaticParams } from '../types';
 import { resolveRoutePath, getRouteParams } from '../serve/resolveRoutePath.js';
@@ -17,7 +17,7 @@ const ssgDispatcher = new Agent({
 });
 const RAW_DIST = 'dist';
 const DIST = path.resolve(RAW_DIST);
-const DIST_SERVER = path.join(DIST, 'server.js');
+const DIST_SERVER = path.join(DIST, 'server/server.js');
 const RAW_DIST_SSG = path.join(RAW_DIST, '.ssg');
 const DIST_SSG = path.resolve(RAW_DIST_SSG);
 
@@ -68,8 +68,8 @@ type ModuleMessage =
       message: string;
     };
 
-async function main() {
-  const routes = await discoverRoutes();
+export default async function main() {
+  const routes = serverRoutes;
   const ssgRoutes = routes.filter((route) => route.mode === 'ssg');
   if (!ssgRoutes.length) {
     return;
@@ -78,7 +78,7 @@ async function main() {
     default: Server,
     HOST,
     PORT,
-  } = await import(pathToFileURL(DIST_SERVER).href);
+  } = await import(/* @vite-ignore */ pathToFileURL(DIST_SERVER).href);
   const PUBLIC_HOST = process.env.HOST ?? HOST;
   const PUBLIC_PORT = process.env.HTTP_PORT ?? PORT;
   const LOCATION = `http://${PUBLIC_HOST}:${PUBLIC_PORT}`;
@@ -112,7 +112,7 @@ async function main() {
       const lnk = ssglnk.get(route.path)!;
       if (!lnk?.generateStaticParams) {
         const pageModule: PageModule = await import(
-          pathToFileURL(route.filePath).href
+          /* @vite-ignore */ pathToFileURL(route.filePath).href
         );
         if (pageModule.generateStaticParams) {
           ssglnk.set(route.path, {
@@ -122,7 +122,7 @@ async function main() {
       }
     } else {
       const pageModule: PageModule = await import(
-        pathToFileURL(route.filePath).href
+        /* @vite-ignore */ pathToFileURL(route.filePath).href
       );
       if (pageModule.generateStaticParams) {
         ssglnk.set(route.path, {
@@ -285,8 +285,3 @@ async function main() {
   await app.close();
   process.exit(1);
 }
-
-main().catch((error) => {
-  console.error('SSG build failed:', error);
-  process.exit(1);
-});

@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { StaticProps } from '../types';
-import type { RouteDefinition } from './routes';
+import type { ServerRoute } from 'virtual:server-router';
 
 export interface LoadedRouteData {
   data: unknown;
@@ -20,21 +20,18 @@ export async function loadRouteData({
   reply,
   params,
 }: {
-  route: RouteDefinition;
+  route: ServerRoute;
   request: FastifyRequest;
   reply: FastifyReply;
   params: Record<string, string | undefined>;
 }): Promise<LoadedRouteData> {
-  if (!route.serverFilePath) {
+  if (!route.serverFile) {
     return {
       data: {},
       statusCode: 200,
     };
   }
-  const pageModule = await import(
-    /* @vite-ignore */
-    route.serverFilePath
-  );
+  const pageModule = route.serverFile();
   if (!pageModule.default) {
     return {
       data: {},

@@ -6,7 +6,7 @@ import { loadRouteData } from './loadRouteData.js';
 import { serverSideTranslations } from '../utils/serverSideTranslations.js';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { InitialProps, RenderFunction, RouteData } from '../types';
-import type { RouteDefinition } from './routes';
+import type { ServerRoute } from 'virtual:server-router';
 import { IS_SECURE } from './environment.js';
 
 const ABORT_DELAY = process.env.VITE_ABORT_DELAY
@@ -23,7 +23,7 @@ export async function renderSSR({
 }: {
   request: FastifyRequest;
   reply: FastifyReply;
-  route: RouteDefinition;
+  route: ServerRoute;
   render: RenderFunction;
   template: string;
   title: string;
