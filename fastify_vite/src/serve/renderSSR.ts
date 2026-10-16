@@ -1,51 +1,49 @@
 import { Transform } from 'node:stream';
 import crypto from 'node:crypto';
 import { renderToPipeableStream } from 'react-dom/server';
-import { matchPath } from 'react-router';
+import { type PathMatch } from 'react-router';
 import { loadRouteData } from './loadRouteData.js';
 import { serverSideTranslations } from '../utils/serverSideTranslations.js';
+import { IS_SSG } from './environment.js';
+import { getRender } from './getRender.js';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import type { InitialProps, RenderFunction, RouteData } from '../types';
+import type { InitialProps, RouteData } from '../types';
 import type { ServerRoute } from 'virtual:server-router';
-import { IS_SECURE } from './environment.js';
+import type { ViteDevServer } from 'vite';
 
+const IS_SECURE = __IS_PRODUCTION__ && !IS_SSG;
 const ABORT_DELAY = process.env.VITE_ABORT_DELAY
   ? Number(process.env.VITE_ABORT_DELAY)
   : 10000;
+
+interface RenderSSRProps {
+  request: FastifyRequest;
+  reply: FastifyReply;
+  route: ServerRoute;
+  pathMatch: PathMatch<string>;
+  template: string;
+  title: string;
+  vite?: ViteDevServer;
+  serverErrorPage: string;
+  appStaticProps?: string;
+}
 
 export async function renderSSR({
   request,
   reply,
   route,
-  render,
+  pathMatch,
   template,
   title,
-}: {
-  request: FastifyRequest;
-  reply: FastifyReply;
-  route: ServerRoute;
-  render: RenderFunction;
-  template: string;
-  title: string;
-}) {
-  const pathname = request.url.split('?')[0];
-  const match = matchPath(
-    {
-      path: route.path,
-      end: true,
-    },
-    pathname
-  );
-
-  if (!match) {
-    return reply.code(404).send('Not Found');
-  }
-
+  vite,
+  serverErrorPage,
+  appStaticProps = '',
+}: RenderSSRProps) {
   const result = await loadRouteData({
     route,
     request,
     reply,
-    params: match.params,
+    params: pathMatch.params,
   });
   if (result.redirect) {
     return reply.redirect(
@@ -89,7 +87,7 @@ export async function renderSSR({
   } else {
     script = '<script>' + scriptContent + '</script>';
   }
-
+  const render = await getRender(vite);
   const element = await render({
     req: request,
     res: reply,
@@ -103,8 +101,8 @@ export async function renderSSR({
       if (!reply.sent) {
         reply
           .code(500)
-          .type('text/html')
-          .send('<h1>Error 500: Something went wrong</h1>');
+          .type('text/html; charset=utf-8')
+          .send(serverErrorPage);
       }
     },
     onShellReady() {
@@ -129,7 +127,7 @@ export async function renderSSR({
       res.write(
         htmlStart
           .replace('<!--app-title-->', result.title ?? title)
-          .replace('<!--app-static-props-->', ''),
+          .replace('<!--app-static-props-->', appStaticProps),
         'utf8'
       );
       const transform = new Transform({

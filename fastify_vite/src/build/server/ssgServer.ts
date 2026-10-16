@@ -1,5 +1,5 @@
 import { createServer, createServerModuleRunner } from 'vite';
-import { BASE } from '../serve/environment.js';
+import { BASE } from '../../serve/environment.js';
 
 export async function ssgServer(url: string) {
   const vite = await createServer({

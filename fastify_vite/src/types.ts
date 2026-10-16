@@ -91,7 +91,7 @@ export interface InitialProps {
 
 export type RenderMode = 'ssr' | 'ssg' | 'csr';
 
-export type StaticParams = Record<string, string>;
+export type StaticParams = Record<string, string | readonly string[]>;
 
 export interface StaticPageModule {
   generateStaticParams?: () => StaticParams[] | Promise<StaticParams[]>;

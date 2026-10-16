@@ -10,9 +10,7 @@ import {
 import type { RenderProps } from '../types';
 import { createRoutes } from '../router/routes.js';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-
-const HOST = process.env.VITE_HOST ?? '0.0.0.0';
-const PORT = process.env.VITE_PORT ? Number(process.env.VITE_PORT) : 5173;
+import { HOST, ORIGIN } from '../serve/environment.js';
 
 export async function render({ req, res, i18n, props, nonce }: RenderProps) {
   const routes = createRoutes(props);
@@ -39,8 +37,7 @@ export function createFetchRequest(
   reply: FastifyReply
 ): Request {
   if (!req.headers) {
-    const origin = `http://${HOST}:${PORT}`;
-    const url = new URL(req.url, origin);
+    const url = new URL(req.url, ORIGIN);
     const headers = new Headers();
     const controller = new AbortController();
     return new Request(url.href, {
@@ -51,7 +48,7 @@ export function createFetchRequest(
   }
   const protocol =
     req.headers['x-forwarded-proto']?.toString().split(',')[0] || req.protocol;
-  const host = req.headers.host || 'localhost';
+  const host = req.headers.host || HOST;
   const origin = `${protocol}://${host}`;
   const requestUrl = req.raw.url || req.url;
   const url = new URL(requestUrl, origin);

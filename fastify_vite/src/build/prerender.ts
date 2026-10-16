@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import serverRoutes from 'virtual:server-router';
 import { languages } from '../services/i18n.shared.js';
 import type { StaticParams } from '../types';
-import { resolveRoutePath, getRouteParams } from '../serve/resolveRoutePath.js';
+import { resolveRoutePath, getRouteParams } from './resolveRoutePath.js';
 import type ServerFN from '../server.js';
 import { createSsgCsp, type CspResult } from './createSsgCsp.js';
 

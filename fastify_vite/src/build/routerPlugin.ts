@@ -2,38 +2,48 @@ import path from 'node:path';
 import { globSync } from 'tinyglobby';
 import { normalizePath, type Plugin, type ResolvedConfig } from 'vite';
 import { createFilter, type FilterPattern } from './createFilter.js';
-import { normalizeRoutePath } from '../serve/normalizeRoutePath.js';
-import { getRoutePath } from '../serve/getRoutePath.js';
-import { readMetadata } from './readMetadata.js';
-
-export type RenderMode = 'ssr' | 'ssg' | 'csr';
+import { normalizeRoutePath } from './normalizeRoutePath.js';
+import { getRoutePath } from './getRoutePath.js';
+import { readMetadata } from './metadata/index.js';
+import { compareRoutes } from './compareRoutes.js';
+import type { RenderMode } from '../types.js';
 
 export interface RouterPluginOptions {
   /**
-   * Files to use as pages.   *
+   * Root of the pages.
+   * 
+   * @default "src/pages"
+   */
+  root?: string;
+  /**
+   * Files to use as pages.
+   * 
    * Patterns are resolved relative to the Vite project root.
    */
-  include?: string | string[];
-
+  include?: FilterPattern;
   /**
-   * Files to exclude.   *
+   * Files to exclude.
+   * 
    * Patterns are resolved relative to the Vite project root.
    */
   exclude?: FilterPattern;
-
   /**
    * ID of the virtual route module.
    *
    * @default "framework-router"
    */
   moduleId?: string;
-
   /**
    * Properties to statically extract from page modules.
    *
    * @default []
    */
   allowProperties?: string[];
+  /**
+   * Include the rendering mode of the page in the route.
+   * 
+   * @default false
+   */
   includeMode?: boolean;
 }
 
@@ -53,15 +63,14 @@ export default function routerPlugin(
 ): Plugin {
   let config: ResolvedConfig;
 
+  const root = options?.root ?? 'src/pages';
+
   const moduleId = options.moduleId ?? 'framework-router';
 
   const virtualModuleId = `virtual:${moduleId}`;
   const resolvedVirtualModuleId = `\0${virtualModuleId}`;
 
-  const include = normalizePatterns(
-    options.include ?? '/src/pages/**/*.{tsx,ts,jsx,js}'
-  );
-
+  const include = options.include ?? '/src/pages/**/*.{tsx,ts,jsx,js}';
   const exclude = options.exclude ?? '/src/pages/**/*.server.{tsx,ts,jsx,js}';
 
   const allowProperties = options.allowProperties ?? [];
@@ -101,21 +110,15 @@ export default function routerPlugin(
         resolveFilterPattern(exclude)
       );
     },
-
     resolveId(id) {
       if (id === virtualModuleId) {
         return resolvedVirtualModuleId;
       }
-
-      return undefined;
     },
-
     load(id) {
-      if (id !== resolvedVirtualModuleId) {
-        return undefined;
+      if (id === resolvedVirtualModuleId) {
+        return generateRouterModule();
       }
-
-      return generateRouterModule();
     },
 
     hotUpdate({ type, file }) {
@@ -192,7 +195,7 @@ export default function routerPlugin(
 
   function discoverRoutes(): InternalRouteDefinition[] {
     const files = discoverFiles();
-    const pagesRoot = path.resolve(config.root, 'src/pages');
+    const pagesRoot = path.resolve(config.root, root);
     return files
       .map((file) => {
         const importPath = getModulePath(file);
@@ -208,19 +211,16 @@ export default function routerPlugin(
           importPath,
         };
       })
-      .sort((a, b) => compareRoutes(a.path, b.path));
+      .sort((a, b) => compareRoutes({ path: a.path }, { path: b.path }));
   }
 
   function discoverFiles(): string[] {
-    const patterns = include.map(normalizeGlobPattern);
-
-    const files = globSync(patterns, {
+    const files = globSync(root, {
       cwd: config.root,
       absolute: true,
       onlyFiles: true,
       dot: false,
     });
-
     /*
      * createFilter remains the final authority for filtering.
      *
@@ -262,68 +262,6 @@ export default function routerPlugin(
 
   function getModulePath(file: string): string {
     const relative = path.relative(config.root, file);
-
     return normalizePath(`/${relative}`);
   }
-
-  function compareRoutes(a: string, b: string): number {
-    if (a === b) {
-      return 0;
-    }
-
-    const aSegments = a.split('/').filter(Boolean);
-
-    const bSegments = b.split('/').filter(Boolean);
-
-    const length = Math.min(aSegments.length, bSegments.length);
-
-    for (let index = 0; index < length; index++) {
-      const aSegment = aSegments[index];
-      const bSegment = bSegments[index];
-
-      const aDynamic = aSegment.startsWith(':') || aSegment.startsWith('*');
-
-      const bDynamic = bSegment.startsWith(':') || bSegment.startsWith('*');
-
-      /*
-       * Static segments take precedence over dynamic
-       * segments.
-       *
-       * /blog/new
-       * /blog/:slug
-       */
-      if (aDynamic !== bDynamic) {
-        return aDynamic ? 1 : -1;
-      }
-
-      if (aSegment !== bSegment) {
-        return aSegment.localeCompare(bSegment);
-      }
-    }
-
-    /*
-     * A shorter route comes first.
-     */
-    return aSegments.length - bSegments.length;
-  }
-}
-
-function normalizePatterns(patterns: string | string[]): string[] {
-  return Array.isArray(patterns) ? patterns : [patterns];
-}
-
-function normalizeGlobPattern(pattern: string): string {
-  if (pattern.startsWith('!/')) {
-    return `!${pattern.slice(2)}`;
-  }
-
-  if (pattern.startsWith('/')) {
-    return pattern.slice(1);
-  }
-
-  if (pattern.startsWith('./')) {
-    return pattern.slice(2);
-  }
-
-  return pattern;
 }

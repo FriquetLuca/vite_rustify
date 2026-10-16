@@ -1,3 +1,2 @@
-import { ssgServer } from './build/ssgServer.js';
-
-ssgServer('/src/build/prerender.ts');
+import { viteServer } from './build/server/index.js';
+viteServer('/src/build/prerender.ts', true);

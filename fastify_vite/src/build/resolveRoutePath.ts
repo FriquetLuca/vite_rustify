@@ -1,14 +1,14 @@
+import type { StaticParams } from "../types";
+
 export interface RouteParam {
   name: string;
   optional: boolean;
 }
 
-export type StaticParams = Record<string, string | readonly string[]>;
-
 const PARAM_RE = /\/:([\w-]+)(\?)?/g;
 const SPLAT_RE = /(^|\/)\*$/;
 
-export function getRouteParamsInfo(routePath: string): RouteParam[] {
+function getRouteParamsInfo(routePath: string): RouteParam[] {
   const params: RouteParam[] = [...routePath.matchAll(PARAM_RE)].map((m) => ({
     name: m[1],
     optional: m[2] === '?',

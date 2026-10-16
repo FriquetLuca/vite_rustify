@@ -1,5 +1,5 @@
 import { createServer, createServerModuleRunner, type Plugin } from 'vite';
-import { BASE } from '../serve/environment.js';
+import { BASE } from '../../serve/environment.js';
 import type { FastifyInstance } from 'fastify';
 
 const serverReload = (onChange: (file: string) => void): Plugin => ({

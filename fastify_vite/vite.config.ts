@@ -8,6 +8,10 @@ import serverRouterPlugin from './src/build/serverRouterPlugin.js';
 export default defineConfig(({ mode, isSsrBuild }) => {
   const env = loadEnv(mode, '../', ['VITE_', 'PUBLIC_']);
   return {
+    define: {
+      __IS_PRODUCTION__: mode === 'production',
+      __IS_SERVER__: isSsrBuild === true,
+    },
     plugins: [
       react(),
       routerPlugin({

@@ -1,10 +1,11 @@
 import path from 'node:path';
 import { glob } from 'tinyglobby';
-import type { Plugin } from 'vite';
+import type { Plugin, ResolvedConfig } from 'vite';
 
-import { getRoutePath } from '../serve/getRoutePath.js';
-import { normalizeRoutePath } from '../serve/normalizeRoutePath.js';
-import { compareRoutes } from '../serve/compareRoutes.js';
+import { getRoutePath } from './getRoutePath.js';
+import { normalizeRoutePath } from './normalizeRoutePath.js';
+import { compareRoutes } from './compareRoutes.js';
+import type { RenderMode } from '../types.js';
 
 const VIRTUAL_MODULE_ID = 'virtual:server-router';
 const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`;
@@ -15,7 +16,7 @@ const SERVER_FILE_REGEX = /\.server\.(tsx|ts|jsx|js)$/;
 interface DiscoveredRoute {
   path: string;
   filePath: string;
-  mode: 'ssr' | 'ssg' | 'csr';
+  mode: RenderMode;
   serverFilePath?: string;
 }
 
@@ -26,11 +27,11 @@ function getMode(file: string): DiscoveredRoute['mode'] {
 }
 
 export default function serverRouterPlugin(): Plugin {
-  let root = process.cwd();
+  let config: ResolvedConfig;
   let routes: DiscoveredRoute[] = [];
 
   async function discoverRoutes() {
-    const pagesDir = path.resolve(root, 'src/pages');
+    const pagesDir = path.resolve(config.root, 'src/pages');
 
     const files = await glob('**/*.{tsx,ts,jsx,js}', {
       cwd: pagesDir,
@@ -57,7 +58,7 @@ export default function serverRouterPlugin(): Plugin {
         return {
           path: normalizeRoutePath(getRoutePath(pagesDir, absoluteFilePath)),
           filePath: path
-            .relative(root, absoluteFilePath)
+            .relative(config.root, absoluteFilePath)
             .split(path.sep)
             .join('/'),
           mode: getMode(file),
@@ -111,27 +112,22 @@ export default function serverRouterPlugin(): Plugin {
   return {
     name: 'server-router',
     enforce: 'pre',
-
-    configResolved(config) {
-      root = config.root;
+    configResolved(resolvedConfig) {
+      config = resolvedConfig;
     },
-
     async buildStart() {
       await discoverRoutes();
     },
-
     resolveId(id) {
       if (id === VIRTUAL_MODULE_ID) {
         return RESOLVED_VIRTUAL_MODULE_ID;
       }
     },
-
     load(id) {
       if (id === RESOLVED_VIRTUAL_MODULE_ID) {
         return generateModule();
       }
     },
-
     hotUpdate: {
       async handler({ file }) {
         if (!isRouteRelatedFile(file)) {

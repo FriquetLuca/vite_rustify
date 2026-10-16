@@ -1,3 +1,2 @@
-import { devServer } from './build/devServer.js';
-
-devServer('/src/server.ts');
+import { viteServer } from './build/server/index.js';
+viteServer('/src/server.ts');

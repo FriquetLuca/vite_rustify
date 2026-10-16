@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
@@ -8,29 +7,25 @@ import cookie from '@fastify/cookie';
 import i18next from 'i18next';
 import i18nextBackend from 'i18next-fs-backend';
 import * as i18nextMiddleware from 'i18next-http-middleware';
-import { matchPath } from 'react-router';
 import { i18nOptions, languages } from './services/i18n.shared.js';
-import { loadSSGManifest } from './serve/routes.js';
+import { loadSSGManifest } from './serve/loadSSGManifest.js';
 import { loadRouteData } from './serve/loadRouteData.js';
 import { renderSSR } from './serve/renderSSR.js';
-import { renderCSR } from './serve/renderCSR.js';
-import { resolveLocale } from './serve/locale.js';
+import { resolveLocale } from './serve/resolveLocale.js';
 import { getIPs } from './serve/getIPs.js';
 import { deduplicateRoutes } from './serve/deduplicateRoutes.js';
 import {
   BASE,
   HOST,
-  IS_PRODUCTION,
-  IS_SECURE,
   IS_SSG,
   PORT,
   TITLE,
 } from './serve/environment.js';
 import type { ViteDevServer } from 'vite';
-import type { RenderFunction } from './types.js';
 import { FileCache } from './serve/fileCache.js';
-import { getStaticHtml } from './serve/getStaticHtml.js';
 import serverRoutes from 'virtual:server-router';
+import { loadHTMLTemplate } from './serve/loadHTMLTemplate.js';
+import { matchRoute } from './serve/matchRoute.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FS_CLIENT = path.join(__dirname, '../client/index.html');
@@ -57,7 +52,7 @@ export default async function Server({ vite }: ServerProps = {}) {
         lookupCookie: 'i18next',
       },
       backend: {
-        loadPath: IS_PRODUCTION
+        loadPath: __IS_PRODUCTION__
           ? 'dist/client/locales/{{ns}}/{{lng}}.json'
           : 'public/locales/{{ns}}/{{lng}}.json',
       },
@@ -72,7 +67,7 @@ export default async function Server({ vite }: ServerProps = {}) {
   });
 
   const routes = deduplicateRoutes(serverRoutes);
-  if (IS_PRODUCTION) {
+  if (__IS_PRODUCTION__) {
     const sirv = (await import('sirv')).default;
     await app.register(import('@fastify/compress'), {
       global: false,
@@ -91,7 +86,7 @@ export default async function Server({ vite }: ServerProps = {}) {
     }
   }
 
-  if (!IS_PRODUCTION) {
+  if (!__IS_PRODUCTION__) {
     const uuid = crypto
       .createHash('md5')
       .update(process.cwd())
@@ -111,25 +106,18 @@ export default async function Server({ vite }: ServerProps = {}) {
 
   app.get('/__data/*', async (request, reply) => {
     const routePath = request.url.replace('/__data', '').split('?')[0];
-    const route = routes.find((candidate) => candidate.path === routePath);
-    if (!route?.serverFile) {
-      return {};
-    }
-    const match = matchPath(
-      {
-        path: route.path,
-        end: true,
-      },
-      routePath
+    const [route, pathMatch] = matchRoute(
+      routePath,
+      routes
     );
-    if (!match) {
+    if (!route || !pathMatch || !route?.serverFile) {
       return {};
     }
     const result = await loadRouteData({
       route,
       request,
       reply,
-      params: match.params,
+      params: pathMatch.params,
     });
     if (result.redirect) {
       return reply.redirect(
@@ -143,10 +131,12 @@ export default async function Server({ vite }: ServerProps = {}) {
     };
   });
 
+  const serverErrorPage = '<h1>Error 500: Something went wrong</h1>';
+
   app.all('*', async (request, reply) => {
     try {
       const pathname = request.url.split('?')[0];
-      if (IS_SECURE) {
+      if (__IS_PRODUCTION__ && !IS_SSG) {
         const locale = resolveLocale(request.headers.host ?? '', request.i18n);
         const reqURL = pathname === '/' ? '/index' : pathname;
         const ssrPath = `${locale}${reqURL}`;
@@ -161,60 +151,33 @@ export default async function Server({ vite }: ServerProps = {}) {
             .send(html);
         }
       }
-      // findMap
-      const route = routes.find((candidate) =>
-        matchPath(
-          {
-            path: candidate.path,
-            end: true,
-          },
-          pathname
-        )
-      );
-
-      if (!route) {
+      const [route, pathMatch] = matchRoute(pathname, routes);
+      const template = await loadHTMLTemplate({
+        location: __IS_PRODUCTION__ ? FS_CLIENT : FS_TEMPLATE,
+        request,
+        vite,
+      });
+      const noRoute = !route || !pathMatch;
+      if (noRoute || route.mode === 'csr') {
         return reply
-          .code(404)
-          .type('text/html')
-          .send('<h1>404 - Not Found</h1>');
-      }
-
-      if (route.mode === 'csr') {
-        let template: string;
-        if (!IS_PRODUCTION) {
-          template = fs.readFileSync(FS_TEMPLATE, 'utf8');
-          template = await vite!.transformIndexHtml(request.url, template);
-        } else {
-          template = (await getStaticHtml(FS_CLIENT))!;
-        }
-        return renderCSR({
-          request,
-          reply,
-          template,
-          title: TITLE,
-        });
-      }
-
-      let template: string;
-      let render: RenderFunction;
-
-      if (!IS_PRODUCTION) {
-        template = fs.readFileSync(FS_TEMPLATE, 'utf8');
-        template = await vite!.transformIndexHtml(request.url, template);
-        render = (await vite!.ssrLoadModule('/src/renderer/entry-server.tsx'))
-          .render;
-      } else {
-        template = (await getStaticHtml(FS_CLIENT))!;
-        render = (await import('./renderer/entry-server.js')).render;
-      }
-
+          .code(noRoute ? 404 : 200)
+          .type('text/html; charset=utf-8')
+          .send(
+            template
+              .replace('<!--app-html-->', '')
+              .replace('<!--app-title-->', TITLE)
+              .replace('<!--app-static-props-->', '')
+          );
+      }      
       return renderSSR({
         request,
         reply,
         route,
-        render,
+        pathMatch,
+        vite,
         template,
         title: TITLE,
+        serverErrorPage,
       });
     } catch (error) {
       if (vite) {
@@ -238,7 +201,8 @@ export default async function Server({ vite }: ServerProps = {}) {
       if (!reply.sent) {
         return reply
           .code(500)
-          .send(IS_PRODUCTION ? 'Server error' : String(error));
+          .type('text/html; charset=utf-8')
+          .send(__IS_PRODUCTION__ ? serverErrorPage : String(error));
       }
     }
   });
@@ -254,10 +218,12 @@ export default async function Server({ vite }: ServerProps = {}) {
 if (!IS_SSG) {
   Server();
 
-  console.log(
-    'Server running at either:',
-    [...getIPs('IPv4').filter((host) => host !== HOST), HOST]
-      .map((host) => `http://${host}:${PORT}`)
-      .join(', ')
-  );
+  if(!__IS_PRODUCTION__) {
+    console.log(
+      'Server running at either:',
+      [...getIPs('IPv4').filter((host) => host !== HOST), HOST]
+        .map((host) => `http://${host}:${PORT}`)
+        .join(', ')
+    );
+  }
 }

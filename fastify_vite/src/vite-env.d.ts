@@ -3,6 +3,8 @@
 declare module 'virtual:framework-router' {
   import type { RouteObject } from 'react-router';
   import type { JSX } from 'react';
+  type RenderMode = import('./types.js').RenderMode;
+
   export interface RouteMetadata {
     isChild?: boolean;
   }
@@ -19,31 +21,30 @@ declare module 'virtual:framework-router' {
     | 'unstable_validateParams'
     | 'middleware'
   >;
-  const pages: {
+  export interface RoutePage {
     id: string;
     path: string;
-    mode: 'ssr' | 'ssg' | 'csr';
+    mode: RenderMode;
     metadata: Record<string, RouteMetadata>;
     load: () => Promise<PageModule>;
-  }[];
+  }
+  const pages: RoutePage[];
   export default pages;
 }
 
 declare module 'virtual:server-router' {
-  import type { SSRCtx, GetStaticProps } from './src/types.js';
-
-  export type ServerRouteModule = {
+  type SSRCtx = import('./types.js').SSRCtx;
+  type GetStaticProps = import('./types.js').GetStaticProps;
+  type RenderMode = import('./types.js').RenderMode;
+  export interface ServerRouteModule {
     default: (props: SSRCtx) => GetStaticProps;
-  };
-
-  export type ServerRoute = {
+  }
+  export interface ServerRoute {
     path: string;
-    mode: 'ssr' | 'ssg' | 'csr';
+    mode: RenderMode;
     filePath: string;
     serverFile?: () => ServerRouteModule;
-  };
-
+  }
   const routes: ServerRoute[];
-
   export default routes;
 }

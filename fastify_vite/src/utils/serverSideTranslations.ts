@@ -1,5 +1,5 @@
 import type { i18n, ResourceKey } from 'i18next';
-import { resolveLocale } from '../serve/locale.js';
+import { resolveLocale } from '../serve/resolveLocale.js';
 
 export function serverSideTranslations({
   i18n,

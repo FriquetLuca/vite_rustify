@@ -8,4 +8,6 @@ declare global {
     __ROUTE_DATA__: RouteDataCache;
     __SSR__?: boolean;
   }
+  declare const __IS_PRODUCTION__: boolean;
+  declare const __IS_SERVER__: boolean;
 }
