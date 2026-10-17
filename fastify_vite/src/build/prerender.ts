@@ -272,5 +272,5 @@ export default async function main() {
     .forEach((modMsg) => console.log(modMsg.message));
   console.log(`\n${ansi.green(`✓ built in ${endTime - startTime}ms`)}\n`);
   await app.close();
-  process.exit(1);
+  process.exit(errCount > 0 ? 1 : 0);
 }

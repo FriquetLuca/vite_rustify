@@ -6,6 +6,7 @@ export async function ssgServer(url: string) {
     server: { middlewareMode: true },
     appType: 'custom',
     base: BASE,
+    logLevel: 'warn',
   });
   const runner = createServerModuleRunner(vite.environments.ssr);
   const main = await runner.import(url);

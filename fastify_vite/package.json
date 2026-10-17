@@ -13,7 +13,7 @@
   "homepage": "https://github.com/TEMPLATE_OWNER/TEMPLATE_NAME#readme",
   "scripts": {
     "dev": "SSG_GEN=true tsx src/dev.ts",
-    "build": "npm run clean && npm run build:client && npm run build:server && npm run build:ssg",
+    "build": "npm run --silent clean && npm run --silent build:client && npm run --silent build:server && npm run --silent build:ssg",
     "build:client": "vite build --mode production --outDir dist/client --ssrManifest",
     "build:server": "vite build --mode production --ssr src/server.ts --outDir dist/server",
     "build:ssg": "NODE_ENV=production SSG_GEN=true BINARY_BYTES=false tsx src/ssg.ts --use-system-ca",
