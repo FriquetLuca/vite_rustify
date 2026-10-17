@@ -4,6 +4,8 @@ set -euo pipefail
 
 IFS=$'\n\t'
 
+sudo -v
+
 backend_pid=""
 
 START_TIME_MS=$(( ${EPOCHREALTIME/./} / 1000 ))

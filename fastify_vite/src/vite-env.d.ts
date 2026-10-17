@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-declare module 'virtual:framework-router' {
+declare module '@router' {
   import type { RouteObject } from 'react-router';
   import type { JSX } from 'react';
   type RenderMode = import('./types.js').RenderMode;
@@ -32,7 +32,7 @@ declare module 'virtual:framework-router' {
   export default pages;
 }
 
-declare module 'virtual:server-router' {
+declare module '@router/server' {
   type SSRCtx = import('./types.js').SSRCtx;
   type GetStaticProps = import('./types.js').GetStaticProps;
   type RenderMode = import('./types.js').RenderMode;

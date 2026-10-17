@@ -8,7 +8,7 @@ import { IS_SSG } from './environment.js';
 import { getRender } from './getRender.js';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { InitialProps, RouteData } from '../types';
-import type { ServerRoute } from 'virtual:server-router';
+import type { ServerRoute } from '@router/server';
 import type { ViteDevServer } from 'vite';
 
 const IS_SECURE = __IS_PRODUCTION__ && !IS_SSG;
@@ -99,10 +99,7 @@ export async function renderSSR({
   const { pipe, abort } = renderToPipeableStream(element, {
     onShellError() {
       if (!reply.sent) {
-        reply
-          .code(500)
-          .type('text/html; charset=utf-8')
-          .send(serverErrorPage);
+        reply.code(500).type('text/html; charset=utf-8').send(serverErrorPage);
       }
     },
     onShellReady() {

@@ -3,7 +3,6 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 import routerPlugin from './src/build/routerPlugin.js';
-import serverRouterPlugin from './src/build/serverRouterPlugin.js';
 
 export default defineConfig(({ mode, isSsrBuild }) => {
   const env = loadEnv(mode, '../', ['VITE_', 'PUBLIC_']);
@@ -22,8 +21,10 @@ export default defineConfig(({ mode, isSsrBuild }) => {
           '/src/pages/**/*.server.tsx',
         ],
         allowProperties: ["mode", "isChild"],
+        moduleId: '@router',
+        serverModuleId: '@router/server',
       }),
-      serverRouterPlugin(),
+      //serverRouterPlugin(),
       babel({
         presets: [reactCompilerPreset()]
       }),

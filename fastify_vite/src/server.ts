@@ -14,16 +14,10 @@ import { renderSSR } from './serve/renderSSR.js';
 import { resolveLocale } from './serve/resolveLocale.js';
 import { getIPs } from './serve/getIPs.js';
 import { deduplicateRoutes } from './serve/deduplicateRoutes.js';
-import {
-  BASE,
-  HOST,
-  IS_SSG,
-  PORT,
-  TITLE,
-} from './serve/environment.js';
+import { BASE, HOST, IS_SSG, PORT, TITLE } from './serve/environment.js';
 import type { ViteDevServer } from 'vite';
 import { FileCache } from './serve/fileCache.js';
-import serverRoutes from 'virtual:server-router';
+import serverRoutes from '@router/server';
 import { loadHTMLTemplate } from './serve/loadHTMLTemplate.js';
 import { matchRoute } from './serve/matchRoute.js';
 
@@ -106,10 +100,7 @@ export default async function Server({ vite }: ServerProps = {}) {
 
   app.get('/__data/*', async (request, reply) => {
     const routePath = request.url.replace('/__data', '').split('?')[0];
-    const [route, pathMatch] = matchRoute(
-      routePath,
-      routes
-    );
+    const [route, pathMatch] = matchRoute(routePath, routes);
     if (!route || !pathMatch || !route?.serverFile) {
       return {};
     }
@@ -168,7 +159,7 @@ export default async function Server({ vite }: ServerProps = {}) {
               .replace('<!--app-title-->', TITLE)
               .replace('<!--app-static-props-->', '')
           );
-      }      
+      }
       return renderSSR({
         request,
         reply,
@@ -218,7 +209,7 @@ export default async function Server({ vite }: ServerProps = {}) {
 if (!IS_SSG) {
   Server();
 
-  if(!__IS_PRODUCTION__) {
+  if (!__IS_PRODUCTION__) {
     console.log(
       'Server running at either:',
       [...getIPs('IPv4').filter((host) => host !== HOST), HOST]

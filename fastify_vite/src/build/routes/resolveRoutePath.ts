@@ -1,4 +1,4 @@
-import type { StaticParams } from "../types";
+import type { StaticParams } from '../types';
 
 export interface RouteParam {
   name: string;

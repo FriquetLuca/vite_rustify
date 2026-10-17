@@ -1,5 +1,5 @@
 import type { RenderMode } from '../types.js';
-import type { ServerRoute } from 'virtual:server-router';
+import type { ServerRoute } from '@router/server';
 
 const renderModePriority: Record<RenderMode, number> = {
   csr: 0,
@@ -23,7 +23,7 @@ export function deduplicateRoutes(routes: ServerRoute[]): ServerRoute[] {
     }
     if (routePriority < existingPriority) {
       continue;
-    }    
+    }
     if (!existing.serverFile && route.serverFile) {
       routesByPath.set(route.path, route);
       continue;

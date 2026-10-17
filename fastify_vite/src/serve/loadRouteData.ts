@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { StaticProps } from '../types';
-import type { ServerRoute } from 'virtual:server-router';
+import type { ServerRoute } from '@router/server';
 
 export interface LoadedRouteData {
   data: unknown;

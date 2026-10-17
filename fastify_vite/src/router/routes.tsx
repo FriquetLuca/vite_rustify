@@ -1,10 +1,10 @@
 import type { RouteObject } from 'react-router';
 import { ServerPropsProvider } from './ServerPropsProvider.js';
 import type { RouteData } from '../types';
-import frameworkRouter from 'virtual:framework-router';
+import pageRoutes from '@router';
 
 export function createRoutes(ssp?: RouteData): RouteObject[] {
-  return frameworkRouter.map(({ path, load }) => ({
+  return pageRoutes.map(({ path, load }) => ({
     path,
     lazy: async () => {
       const { default: Component, ...props } = await load();

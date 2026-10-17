@@ -9,6 +9,7 @@ import type { RequestRouteOptions } from 'fastify/types/request';
 import type { HttpHeader } from 'fastify/types/utils';
 import type { Resource, ResourceKey, TFunction } from 'i18next';
 import type { i18n } from 'i18next';
+import type { IncomingHttpHeaders } from 'node:http';
 
 export interface ManifestSSG {
   path: string;
@@ -33,7 +34,7 @@ export interface SSRCtx {
   host: string;
   port: number | null;
   hostname: string;
-  headers: { [k: string]: string };
+  headers: IncomingHttpHeaders;
   body: unknown;
   query: unknown;
   cookies: {

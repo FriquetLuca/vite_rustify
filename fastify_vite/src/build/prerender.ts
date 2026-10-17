@@ -1,14 +1,19 @@
-import { Agent, fetch, Response } from 'undici';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { pathToFileURL } from 'node:url';
-import serverRoutes from 'virtual:server-router';
+import { Agent, fetch, Response } from 'undici';
+import serverRoutes from '@router/server';
+import { resolveRoutePath, getRouteParams } from './routes/index.js';
+import {
+  ansi,
+  createSsgCsp,
+  formatBytes,
+  type CspResult,
+} from './utils/index.js';
 import { languages } from '../services/i18n.shared.js';
 import type { StaticParams } from '../types';
-import { resolveRoutePath, getRouteParams } from './resolveRoutePath.js';
 import type ServerFN from '../server.js';
-import { createSsgCsp, type CspResult } from './createSsgCsp.js';
 
 const ssgDispatcher = new Agent({
   connect: {
@@ -21,27 +26,10 @@ const DIST_SERVER = path.join(DIST, 'server/server.js');
 const RAW_DIST_SSG = path.join(RAW_DIST, '.ssg');
 const DIST_SSG = path.resolve(RAW_DIST_SSG);
 
-const colors = {
-  reset: '\x1b[0m',
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  cyan: '\x1b[36m',
-  gray: '\x1b[90m',
-  bold: '\x1b[1m',
-  dim: '\x1b[2m',
-  italic: '\x1b[3m',
-  underline: '\x1b[4m',
-};
-
-function formatBytes(bytes: number) {
-  const kb = bytes / 1024;
-  if (kb < 1024) {
-    return `${kb.toFixed(2)} kB`;
-  }
-  return `${(kb / 1024).toFixed(2)} MB`;
-}
+const LOG_RAW_DIST_SSG = ansi.blackBright(`${RAW_DIST_SSG}/`);
+const LOG_SUCCESS_OP = ansi.green('✓');
+const LOG_FAIL_OP = ansi.green('✗');
+const LOG_FAIL_PRERENDER = ansi.red('Failed to prerender');
 
 function outputPath(routePath: string, locale: string) {
   if (routePath === '/') {
@@ -59,9 +47,8 @@ type PageModule = { generateStaticParams?: () => Promise<StaticParams[]> };
 type ModuleMessage =
   | {
       type: 'gen';
+      output: string;
       location: string;
-      size: number;
-      gzipSize: number;
     }
   | {
       type: 'error';
@@ -81,6 +68,8 @@ export default async function main() {
   } = await import(/* @vite-ignore */ pathToFileURL(DIST_SERVER).href);
   const PUBLIC_HOST = process.env.HOST ?? HOST;
   const PUBLIC_PORT = process.env.HTTP_PORT ?? PORT;
+  const IS_BINARY_BYTES = process.env.BINARY_BYTES === 'true';
+  const BINARY_BYTES_FORMAT = IS_BINARY_BYTES ? 'binary' : 'decimal';
   const LOCATION = `http://${PUBLIC_HOST}:${PUBLIC_PORT}`;
   const fetchRoute = async (url: string, locale: string) => {
     try {
@@ -140,7 +129,7 @@ export default async function main() {
   }));
 
   console.log(
-    `\n${colors.blue}SSG v1.0.0${colors.reset} ${colors.green}building ssg for production...${colors.reset}`
+    `\n${ansi.blue('SSG v1.0.0')} ${ansi.green('building ssg for production...')}`
   );
   const moduleMessages: ModuleMessage[] = [];
   const scriptHashes: ({ path: string } & CspResult)[] = [];
@@ -152,7 +141,7 @@ export default async function main() {
         const response = await fetchRoute(route.path, locale);
         if (!response.ok) {
           errorGen.add(
-            `${colors.red}Failed to prerender${colors.reset} ${colors.gray}${route.path}${colors.reset}: ${response.status} ${response.statusText}`
+            `${LOG_FAIL_PRERENDER} ${ansi.blackBright(route.path)}: ${response.status} ${response.statusText}`
           );
           continue;
         }
@@ -166,13 +155,10 @@ export default async function main() {
           ...createSsgCsp(html),
           path: outputRoute(route.path, locale),
         });
-        const size = Buffer.byteLength(html, 'utf8');
-        const gzipSize = gzipSync(html).byteLength;
         moduleMessages.push({
           type: 'gen',
           location: path.relative(DIST_SSG, output),
-          size,
-          gzipSize,
+          output,
         });
       }
       continue;
@@ -197,7 +183,7 @@ export default async function main() {
         const response = await fetchRoute(routePath, locale);
         if (!response.ok) {
           errorGen.add(
-            `${colors.red}Failed to prerender${colors.reset} ${colors.gray}${routePath}${colors.reset}: ${response.status} ${response.statusText}`
+            `${LOG_FAIL_PRERENDER} ${ansi.blackBright(routePath)}: ${response.status} ${response.statusText}`
           );
           hasMissed = true;
           continue;
@@ -212,13 +198,10 @@ export default async function main() {
           ...createSsgCsp(html),
           path: outputRoute(routePath, locale),
         });
-        const size = Buffer.byteLength(html, 'utf8');
-        const gzipSize = gzipSync(html).byteLength;
         moduleMessages.push({
           type: 'gen',
           location: path.relative(DIST_SSG, output),
-          size,
-          gzipSize,
+          output,
         });
       }
       if (hasMissed) {
@@ -234,7 +217,7 @@ export default async function main() {
       );
       moduleMessages.push({
         type: 'error',
-        message: `${colors.green}${params.length - missingCount}${colors.reset} out of ${colors.red}${params.length}${colors.reset} path${params.length > 1 ? 's' : ''} on ${colors.gray}${route.path}${colors.reset} has been generated`,
+        message: `${ansi.green(params.length - missingCount)} out of ${ansi.red(params.length)} path${params.length > 1 ? 's' : ''} on ${ansi.blackBright(route.path)} has been generated`,
       });
     }
   }
@@ -260,28 +243,34 @@ export default async function main() {
     0
   );
   console.log(
-    `${colors.green}✓${colors.reset} ${genCount} module${genCount > 1 ? 's' : ''} transformed.`
+    `${LOG_SUCCESS_OP} ${genCount} module${genCount > 1 ? 's' : ''} transformed.`
   );
   if (errCount > 0) {
     console.log(
-      `${colors.red}✗${colors.reset} ${errCount} module${errCount > 1 ? 's' : ''} failed.`
+      `${LOG_FAIL_OP} ${errCount} module${errCount > 1 ? 's' : ''} failed.`
+    );
+  }
+  console.log('computing gzip size...');
+  const generated = moduleMessages.filter((m) => m.type === 'gen');
+  for (const modMsg of generated) {
+    const html = await fs.readFile(modMsg.output, 'utf8');
+    const size = Buffer.byteLength(html, 'utf8');
+    const gzipSize = gzipSync(html).byteLength;
+    console.log(
+      LOG_RAW_DIST_SSG +
+        ansi.green(modMsg.location.padEnd(offset)) +
+        ' ' +
+        ansi.bold.blackBright(formatBytes(size, BINARY_BYTES_FORMAT)) +
+        ' ' +
+        ansi.blackBright(
+          `│ gzip: ${formatBytes(gzipSize, BINARY_BYTES_FORMAT)}`
+        )
     );
   }
   moduleMessages
-    .filter((m) => m.type === 'gen')
-    .forEach((modMsg) =>
-      console.log(
-        `${colors.gray}${RAW_DIST_SSG}/${colors.reset}` +
-          `${colors.green}${modMsg.location.padEnd(offset)}${colors.reset} ` +
-          `${colors.gray}${colors.bold}${formatBytes(modMsg.size)}${colors.reset} ${colors.gray}│ gzip: ${formatBytes(modMsg.gzipSize)}${colors.reset}`
-      )
-    );
-  moduleMessages
     .filter((m) => m.type === 'error')
     .forEach((modMsg) => console.log(modMsg.message));
-  console.log(
-    `\n${colors.green}✓ built in ${endTime - startTime}ms${colors.reset}\n`
-  );
+  console.log(`\n${ansi.green(`✓ built in ${endTime - startTime}ms`)}\n`);
   await app.close();
   process.exit(1);
 }

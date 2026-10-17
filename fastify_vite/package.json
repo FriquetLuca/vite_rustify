@@ -16,7 +16,7 @@
     "build": "npm run clean && npm run build:client && npm run build:server && npm run build:ssg",
     "build:client": "vite build --mode production --outDir dist/client --ssrManifest",
     "build:server": "vite build --mode production --ssr src/server.ts --outDir dist/server",
-    "build:ssg": "NODE_ENV=production SSG_GEN=true tsx src/ssg.ts --use-system-ca",
+    "build:ssg": "NODE_ENV=production SSG_GEN=true BINARY_BYTES=false tsx src/ssg.ts --use-system-ca",
     "start": "NODE_ENV=production node dist/server/server.js",
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,html,css}\" --log-level silent",
