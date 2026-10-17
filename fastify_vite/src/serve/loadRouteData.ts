@@ -10,8 +10,14 @@ export interface LoadedRouteData {
     statusCode?: number;
     url: string;
   };
-  i18nStore?: Record<string, Record<string, unknown>>;
-  language?: string;
+  i18nNS?: string[];
+}
+
+interface LoadRouteDataProps {
+  route: ServerRoute;
+  request: FastifyRequest;
+  reply: FastifyReply;
+  params: Record<string, string | undefined>;
 }
 
 export async function loadRouteData({
@@ -19,12 +25,7 @@ export async function loadRouteData({
   request,
   reply,
   params,
-}: {
-  route: ServerRoute;
-  request: FastifyRequest;
-  reply: FastifyReply;
-  params: Record<string, string | undefined>;
-}): Promise<LoadedRouteData> {
+}: LoadRouteDataProps): Promise<LoadedRouteData> {
   if (!route.serverFile) {
     return {
       data: {},
@@ -59,7 +60,6 @@ export async function loadRouteData({
     title: result?.title,
     statusCode: result?.statusCode ?? 200,
     redirect: result?.redirect,
-    i18nStore: result?.i18nStore,
-    language: result?.language,
+    i18nNS: result?.i18nNS,
   };
 }

@@ -7,7 +7,7 @@ import type {
 } from 'fastify';
 import type { RequestRouteOptions } from 'fastify/types/request';
 import type { HttpHeader } from 'fastify/types/utils';
-import type { Resource, ResourceKey, TFunction } from 'i18next';
+import type { Resource, TFunction } from 'i18next';
 import type { i18n } from 'i18next';
 import type { IncomingHttpHeaders } from 'node:http';
 
@@ -80,14 +80,12 @@ export interface ServerReply {
 }
 
 export interface i18nProps {
-  i18nStore?: Record<string, Record<string, ResourceKey>>;
-  language?: string;
+  i18nNS?: string[];
 }
 
 export interface InitialProps {
   initialI18nStore: Resource;
   initialLanguage: string;
-  initialNS: string[];
 }
 
 export type RenderMode = 'ssr' | 'ssg' | 'csr';

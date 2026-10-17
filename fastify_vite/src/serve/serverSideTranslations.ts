@@ -1,20 +1,21 @@
 import type { i18n, ResourceKey } from 'i18next';
 import { resolveLocale } from '../serve/resolveLocale.js';
 
+interface ServerSideTranslationProps {
+  i18n: i18n;
+  ns: string[];
+  host?: string;
+}
+
 export function serverSideTranslations({
   i18n,
   ns,
   host,
-}: {
-  i18n: i18n;
-  ns: string[];
-  host?: string;
-}) {
+}: ServerSideTranslationProps) {
   if (i18n === null)
     return {
-      language: '',
-      namespaces: [],
-      i18nStore: {},
+      language: undefined,
+      i18nStore: undefined,
     };
   const initialI18nStore: Record<string, Record<string, ResourceKey>> = {};
   const ons = i18n.options.ns || [];
@@ -31,7 +32,6 @@ export function serverSideTranslations({
   const locale = resolveLocale(host ?? '', i18n);
   return {
     language: locale,
-    namespaces: ns,
     i18nStore: initialI18nStore,
   };
 }

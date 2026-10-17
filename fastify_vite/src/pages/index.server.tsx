@@ -1,16 +1,8 @@
-import { serverSideTranslations } from '../utils/serverSideTranslations.js';
 import type { SSRCtx, GetStaticProps } from '../types';
 
-export default async function getStaticProps({
-  i18n,
-  host,
-}: SSRCtx): GetStaticProps {
+export default async function getStaticProps(_: SSRCtx): GetStaticProps {
   return {
     data: { title: 'About Us' },
-    ...serverSideTranslations({
-      i18n,
-      ns: ['translations'],
-      host,
-    }),
+    i18nNS: ['translations'],
   };
 }

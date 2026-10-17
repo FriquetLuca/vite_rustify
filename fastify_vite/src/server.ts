@@ -11,28 +11,29 @@ import { i18nOptions, languages } from './services/i18n.shared.js';
 import { loadSSGManifest } from './serve/loadSSGManifest.js';
 import { loadRouteData } from './serve/loadRouteData.js';
 import { renderSSR } from './serve/renderSSR.js';
-import { resolveLocale } from './serve/resolveLocale.js';
 import { getIPs } from './serve/getIPs.js';
 import { deduplicateRoutes } from './serve/deduplicateRoutes.js';
 import { BASE, HOST, IS_SSG, PORT, TITLE } from './serve/environment.js';
 import type { ViteDevServer } from 'vite';
-import { FileCache } from './serve/fileCache.js';
 import serverRoutes from '@router/server';
 import { loadHTMLTemplate } from './serve/loadHTMLTemplate.js';
 import { matchRoute } from './serve/matchRoute.js';
+import { loadSSGPage } from './serve/loadSSGPage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const FS_CLIENT = path.join(__dirname, '../client/index.html');
+const FS_CLIENT_DIR = path.join(__dirname, '../client');
+const FS_CLIENT = path.join(FS_CLIENT_DIR, 'index.html');
 const FS_TEMPLATE = path.join(__dirname, '../index.html');
 const SSG_MANIFEST = path.join(__dirname, '../.ssg.json');
-const ssgManifest = loadSSGManifest(SSG_MANIFEST);
-const ssgCache = new FileCache();
 
 interface ServerProps {
   vite?: ViteDevServer;
 }
 
 export default async function Server({ vite }: ServerProps = {}) {
+  const routes = deduplicateRoutes(serverRoutes);
+  const ssgManifest = await loadSSGManifest(SSG_MANIFEST);
+
   i18next
     .use(i18nextBackend)
     .use(i18nextMiddleware.LanguageDetector)
@@ -60,7 +61,6 @@ export default async function Server({ vite }: ServerProps = {}) {
     i18next,
   });
 
-  const routes = deduplicateRoutes(serverRoutes);
   if (__IS_PRODUCTION__) {
     const sirv = (await import('sirv')).default;
     await app.register(import('@fastify/compress'), {
@@ -68,7 +68,7 @@ export default async function Server({ vite }: ServerProps = {}) {
     });
     app.use(
       BASE,
-      sirv(path.join(__dirname, '../client'), {
+      sirv(FS_CLIENT_DIR, {
         extensions: [],
         gzip: true,
         brotli: true,
@@ -128,13 +128,14 @@ export default async function Server({ vite }: ServerProps = {}) {
     try {
       const pathname = request.url.split('?')[0];
       if (__IS_PRODUCTION__ && !IS_SSG) {
-        const locale = resolveLocale(request.headers.host ?? '', request.i18n);
-        const reqURL = pathname === '/' ? '/index' : pathname;
-        const ssrPath = `${locale}${reqURL}`;
-        const manifest = ssgManifest.find((m) => m.path === ssrPath);
-        const staticLocation = path.join(__dirname, `.ssg/${ssrPath}.html`);
-        const html = await ssgCache.get(staticLocation);
+        const [ssrPath, html] = await loadSSGPage(
+          __dirname,
+          pathname,
+          request.headers.host ?? '',
+          request.i18n
+        );
         if (html !== undefined) {
+          const manifest = ssgManifest.find((m) => m.path === ssrPath);
           return reply
             .code(200)
             .type('text/html; charset=utf-8')

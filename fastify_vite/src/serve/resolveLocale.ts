@@ -7,6 +7,6 @@ export function resolveLocale(host: string, i18n: i18n): string {
   if (languages.includes(firstLabel)) {
     return firstLabel;
   }
-  const maybeLanguage = i18n.languages[0];
-  return languages.includes(maybeLanguage) ? maybeLanguage : defaultLanguage;
+  const maybeLanguage = i18n.languages.find((ln) => languages.includes(ln));
+  return maybeLanguage || defaultLanguage;
 }
