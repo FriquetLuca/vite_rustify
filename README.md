@@ -1,9 +1,6 @@
 # TEMPLATE_PRETTY_NAME
 
-![Build Status](https://github.com/TEMPLATE_OWNER/TEMPLATE_NAME/actions/workflows/build.yml/badge.svg)
-![Test Status](https://github.com/TEMPLATE_OWNER/TEMPLATE_NAME/actions/workflows/test.yml/badge.svg)
-
-A modern full-stack web application template featuring flexible **SSR** (Server-Side Rendering) and **CSR** (Client-Side Rendering) options, built-in HTTPS, PostgreSQL integration, and Vite tooling.
+A modern full-stack web application template featuring flexible **SSG** (Static Site Generation), **SSR** (Server-Side Rendering) and **CSR** (Client-Side Rendering) options, built-in HTTPS, PostgreSQL integration, and Vite tooling.
 
 ---
 
@@ -16,7 +13,7 @@ A modern full-stack web application template featuring flexible **SSR** (Server-
   - [2. Database Setup](#2-database-setup)
   - [3. Environment Configuration](#3-environment-configuration)
   - [4. Local SSL Certificates](#4-local-ssl-certificates)
-  - [5. Choose Architecture & Install Dependencies](#5-choose-architecture--install-dependencies)
+  - [5. Install Dependencies](#5-install-dependencies)
 - [🛠 Development Guide](#-development-guide)
   - [Environment Architecture](#environment-architecture)
   - [Server Features & Proxies](#server-features--proxies)
@@ -24,12 +21,13 @@ A modern full-stack web application template featuring flexible **SSR** (Server-
   - [Database Migrations](#database-migrations)
 - [🚀 Scripts & Workflows](#-scripts--workflows)
   - [Flags](#flags)
+  - [Examples](#examples)
 
 ---
 
 ## ✨ Features
 
-- **Flexible Rendering:** Choose between SSR (`fastify_vite_ssr`) or CSR (`vite_csr`) for your frontend architecture.
+- **Flexible Rendering:** Choose between SSG, SSR or CSR for your frontend routes.
 - **Secure Local Development:** HTTPS enabled out-of-the-box via `mkcert` and secure cookie-based session management.
 - **Environment Isolation:** Multi-tiered environment variable structure targeting client, public, and server domains.
 - **Built-in i18n:** Clean translation folder layout using namespace-based JSON structures.
@@ -118,32 +116,22 @@ mkcert -install
 mkcert -key-file key.pem -cert-file cert.pem 127.0.0.1 localhost
 ```
 
-### 5. Choose Architecture & Install Dependencies
+### 5. Install Dependencies
 
-Decide whether you want **Server-Side Rendering (SSR)** or **Client-Side Rendering (CSR)**:
-
-- For **CSR**, delete the `fastify_vite_ssr` directory.
-- For **SSR**, delete the `vite_csr` directory.
-
-#### Install Dependencies & Tooling
-```bash
-# 1. Navigate to your selected frontend directory and install packages
-cd fastify_vite_ssr # or: cd vite_csr
-npm install
-cd ..
-
-# 2. Install cargo watch for automatic backend reloading
-cargo install cargo-watch --locked
-
-# 3. Grant executable permissions to development scripts
-# For SSR:
-chmod +x fmt_ssr.sh dev_ssr.sh build_ssr.sh start_ssr.sh
-# For CSR:
-chmod +x fmt_csr.sh dev_csr.sh build_csr.sh start_csr.sh
-
-# (Optional) Rename your target scripts to drop the '_csr' or '_ssr' suffix:
-# mv dev_ssr.sh dev.sh
-```
+1. Navigate to your selected frontend directory and install packages
+    ```bash
+    cd fastify_vite
+    npm install
+    cd ..
+    ```
+2. Install cargo watch for automatic backend reloading
+    ```bash
+    cargo install cargo-watch --locked
+    ```
+3. Grant executable permissions to development scripts
+    ```bash
+    chmod +x fmt.sh dev.sh build.sh start.sh
+    ```
 
 ---
 
@@ -176,15 +164,43 @@ public/locales/{{namespace}}/{{language}}.json
 ```
 
 #### File-Based Routing
-Pages reside in `src/pages/`. Directory index files map directly to route roots:
 
-| File Path | Mapped URL Route |
-| :--- | :--- |
-| `src/pages/index.tsx` | `/` |
-| `src/pages/contact/index.tsx` | `/contact/` |
-| `src/pages/user/usr-[id].tsx` | `/user/usr-123` *(Dynamic Param)* |
+Routes are automatically created from files inside the `src/pages/` directory. Each page's file extension determines how it is rendered.
 
-Dynamic parameters are designated using the `[param]` syntax within filenames.
+##### Rendering Modes
+
+Use one of the following extensions to choose a page's rendering mode:
+
+| Extension | Rendering Mode | Description |
+|---|---|---|
+| `.ssg.tsx` | Static Site Generation (SSG) | Generates pages at build time. |
+| `.ssr.tsx` | Server-Side Rendering (SSR) | Renders pages on the server for each request. |
+| `.csr.tsx` | Client-Side Rendering (CSR) | Renders pages in the browser. |
+
+##### Route Mapping
+
+The file structure determines the URL. Directory index files map to the root of their respective directories.
+
+| File Path | URL Route |
+|---|---|
+| `src/pages/index.ssr.tsx` | `/` |
+| `src/pages/contact/index.ssr.tsx` | `/contact/` |
+| `src/pages/about.ssg.tsx` | `/about` |
+| `src/pages/user/usr-[id].ssr.tsx` | `/user/usr-123` |
+
+*The rendering mode shown in these examples is illustrative. You can choose the appropriate mode for each page.*
+
+##### Dynamic Routes
+
+To create a dynamic route, include a parameter in the filename using square brackets: `[param]`.
+
+For example, `src/pages/user/usr-[id].ssr.tsx` matches URLs such as:
+
+- `/user/usr-123`
+- `/user/usr-456`
+- `/user/usr-789`
+
+In each case, `id` represents the dynamic part of the URL.
 
 ### Database Migrations
 
@@ -257,20 +273,45 @@ DATABASE_URL=postgres://user:password@localhost:5432/database_name
 
 | Script | Purpose |
 | :--- | :--- |
-| `./dev.sh` | Launches hot-reloading development environment for real-time changes. |
-| `./fmt.sh` | Formats code according to project style guidelines. |
-| `./build.sh` | Compiles assets and builds the application for production. |
-| `./start.sh` | Executes the built production bundle *(Requires prior execution of `./build.sh`)*. |
+| `./dev.sh` | Launches the Rust backend and Vite development server with hot reloading. |
+| `./fmt.sh` | Formats Rust and frontend code according to project style guidelines. |
+| `./build.sh` | Builds the Rust backend in release mode and builds the frontend, including static site generation (SSG). |
+| `./start.sh` | Runs the prebuilt Rust executable and frontend production server. **Requires a successful prior execution of `./build.sh`.** |
 
 ### Flags
 
 | Script | Flag | Effect |
 | :--- | :--- | :--- |
-| `./dev.sh` | `--log` | Sets `RUST_LOG=debug` for the actix server. Omit for no logging output. |
-| `./build.sh` | `--release` | Builds the actix server in release mode (`cargo build --release`). Omit for a debug build. |
+| `./dev.sh`, `./start.sh` | `--log` | Enables Rust logging with `RUST_LOG=info`. |
+| `./dev.sh`, `./start.sh` | `--log=LEVEL` | Sets the Rust log level, e.g. `debug`, `trace`, or `warn`. |
+| `./build.sh` | `--check`, `-check`, `-c` | Checks the backend and frontend ports and offers to terminate processes occupying them. |
+| `./build.sh` | `--yes`, `-y` | Skips interactive confirmations. When combined with `--check`, automatically attempts to free occupied ports. |
+| `./dev.sh`, `./fmt.sh`, `./build.sh`, `./start.sh` | `--help`, `-h` | Displays usage information. |
 
-**Examples:**
+### Examples
+
 ```bash
-./dev.sh --log          # dev server with debug logging
-./build.sh --release    # production release build
+# Start development servers
+./dev.sh
+
+# Start development servers with Rust info logging
+./dev.sh --log
+
+# Enable detailed Rust debug logging
+./dev.sh --log=debug
+
+# Format Rust and frontend code
+./fmt.sh
+
+# Build the production backend and frontend
+./build.sh
+
+# Check ports before building
+./build.sh --check
+
+# Automatically attempt to free occupied ports before building
+./build.sh --check --yes
+
+# Start the production services (after building)
+./start.sh
 ```
